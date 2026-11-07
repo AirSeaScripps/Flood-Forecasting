@@ -1,0 +1,195 @@
+{
+ "schema": "trim_storm.web/1",
+ "title": "Coastal flood forecasts, Southern California (experimental)",
+ "description": "",
+ "disclaimer": "Experimental research forecast, updated automatically and not reviewed before posting. For official watches and warnings see the National Weather Service.",
+ "generated_utc": "2026-11-07T13:16Z",
+ "days": 14,
+ "stale_hours": 36,
+ "risk_labels": [
+  "Low chance per tide",
+  "Minor flooding possible",
+  "Minor flooding likely",
+  "Moderate flooding possible",
+  "Moderate flooding likely"
+ ],
+ "trim_storm_version": "0.2.0",
+ "sites": [
+  {
+   "site": "NEWPORT",
+   "local_tz": "America/Los_Angeles",
+   "run_id": "20261107T13Z",
+   "hazard_term": "berm overtopping",
+   "forecast_days": 6.0,
+   "drains": {
+    "n_inlets": 211,
+    "max_pct_closed": 91.9,
+    "time_max_utc": "2026-11-08T16:00Z",
+    "backflow_inlets": [
+     "CB07_047"
+    ],
+    "backflow_windows": [
+     {
+      "start_utc": "2026-11-07T14:00Z",
+      "end_utc": "2026-11-07T16:00Z",
+      "max_inlets": 1
+     },
+     {
+      "start_utc": "2026-11-08T15:00Z",
+      "end_utc": "2026-11-08T17:00Z",
+      "max_inlets": 1
+     },
+     {
+      "start_utc": "2026-11-09T15:00Z",
+      "end_utc": "2026-11-09T17:00Z",
+      "max_inlets": 1
+     },
+     {
+      "start_utc": "2026-11-10T15:00Z",
+      "end_utc": "2026-11-10T18:00Z",
+      "max_inlets": 1
+     },
+     {
+      "start_utc": "2026-11-11T16:00Z",
+      "end_utc": "2026-11-11T18:00Z",
+      "max_inlets": 1
+     },
+     {
+      "start_utc": "2026-11-12T17:00Z",
+      "end_utc": "2026-11-12T18:00Z",
+      "max_inlets": 1
+     }
+    ],
+    "rain": {
+     "source": "NBM",
+     "cycle_utc": "2026-11-07T00:00Z",
+     "total_mm": 0.5,
+     "max_mm_h": 0.11,
+     "time_max_utc": "2026-11-13T13:00Z",
+     "rule": {
+      "compound_mm_h": 2.5,
+      "pct_closed": 50.0,
+      "light_mm_h": 0.1
+     },
+     "closed_windows": [],
+     "compound_windows": [],
+     "upper": {
+      "percentile": 90,
+      "total_mm": 2.5,
+      "max_mm_h": 0.5
+     }
+    }
+   },
+   "pluvial": [],
+   "issue_utc": "2026-11-07T13:00Z",
+   "path": "forecasts/NEWPORT/20261107T13Z/",
+   "age_hours": 0.3,
+   "stale": false,
+   "transects": [
+    {
+     "transect_id": "NEWPORT",
+     "lat": 33.6027,
+     "lon": -117.9111,
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.044,
+     "time_max_P_minor": "2026-11-11T17:00Z",
+     "max_P_moderate": 0.011,
+     "time_max_P_moderate": "2026-11-07T15:00Z",
+     "P_any_minor": 0.164,
+     "P_any_moderate": 0.04,
+     "max_TWL_p50_m": 3.7166,
+     "threshold_minor_m": 5.1,
+     "threshold_moderate_m": 6.1,
+     "structure_type": null,
+     "max_P_ov_minor": null,
+     "max_P_ov_moderate": null,
+     "runup_calibrated": true,
+     "drain_max_pct_closed": 91.9,
+     "drain_compound_hours": 0.0
+    }
+   ],
+   "figures": [
+    {
+     "file": "coastal_NEWPORT.png",
+     "title": "Coastal forecast, transect NEWPORT"
+    },
+    {
+     "file": "drain_timeline.png",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "diagnostics/overview_NEWPORT.png",
+     "title": "Wave energy and runup on the beach profile, transect NEWPORT"
+    }
+   ],
+   "tables": [
+    {
+     "file": "coastal_summary.csv",
+     "title": "Coastal forecast, transect summary"
+    },
+    {
+     "file": "coastal_timeseries.csv",
+     "title": "Coastal forecast, transect timeseries"
+    },
+    {
+     "file": "drain_timeline.csv",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "rain_timeseries.csv",
+     "title": "rain timeseries"
+    }
+   ],
+   "history": [
+    {
+     "run_id": "20261107T13Z",
+     "issue_utc": "2026-11-07T13:00Z",
+     "path": "forecasts/NEWPORT/20261107T13Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.044,
+     "max_P_moderate": 0.011
+    },
+    {
+     "run_id": "20261107T01Z",
+     "issue_utc": "2026-11-07T01:00Z",
+     "path": "forecasts/NEWPORT/20261107T01Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.048,
+     "max_P_moderate": 0.011
+    },
+    {
+     "run_id": "20261105T13Z",
+     "issue_utc": "2026-11-05T13:00Z",
+     "path": "forecasts/NEWPORT/20261105T13Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.152,
+     "max_P_moderate": 0.035
+    },
+    {
+     "run_id": "20261104T13Z",
+     "issue_utc": "2026-11-04T13:00Z",
+     "path": "forecasts/NEWPORT/20261104T13Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.132,
+     "max_P_moderate": 0.025
+    },
+    {
+     "run_id": "20261103T13Z",
+     "issue_utc": "2026-11-03T13:00Z",
+     "path": "forecasts/NEWPORT/20261103T13Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.151,
+     "max_P_moderate": 0.028
+    },
+    {
+     "run_id": "20261103T00Z",
+     "issue_utc": "2026-11-03T00:00Z",
+     "path": "forecasts/NEWPORT/20261103T00Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.171,
+     "max_P_moderate": 0.045
+    }
+   ]
+  }
+ ]
+}
