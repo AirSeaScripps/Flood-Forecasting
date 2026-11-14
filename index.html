@@ -1,0 +1,357 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coastal flood forecasts</title>
+<!-- Page made by TRIM_Storm (trim-storm publish). It reads data/latest.json; no server code. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2329; --muted: #5d6873; --line: #dde2e7; --card: #f6f8fa; --link: #0b62a3;
+    --warn-bg: #fff4d6; --warn-fg: #6b4d00;
+    --r0: #6b8f71; --r1: #e3b505; --r2: #e07b00; --r3: #c8341f; --r4: #7d1f6b; --na: #9aa4ad;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181c; --fg: #e4e8ec; --muted: #9aa5b0; --line: #2c343c; --card: #1b2127; --link: #6cb6f2;
+            --warn-bg: #3d3112; --warn-fg: #f2d68a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header, main, footer { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 0; }
+  a { color: var(--link); }
+  .muted { color: var(--muted); }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 12px 0;
+          font-size: 0.92rem; }
+  .stale { background: var(--warn-bg); color: var(--warn-fg); border-radius: 4px; padding: 2px 8px; font-size: 0.85rem; }
+  #map { height: 240px; border: 1px solid var(--line); border-radius: 6px; margin: 12px 0 4px; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.85rem; margin-bottom: 16px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  section.site { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 16px 0; }
+  .site-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 8px; }
+  .badge { color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 0.85rem; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  .figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); gap: 14px;
+          margin-top: 14px; }
+  .outlook { margin: 4px 0 12px; }
+  .pmap { height: 420px; border: 1px solid var(--line); border-radius: 6px; margin: 8px 0 4px; }
+  .pluvial h3 { font-size: 1rem; margin: 16px 0 2px; }
+  .pluvial .legend { margin: 4px 0 2px; }
+  .sq { display: inline-block; width: 14px; height: 11px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
+  .outlook p { margin: 4px 0; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--link); }
+  footer { padding-bottom: 28px; font-size: 0.85rem; }
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Coastal flood forecasts</h1>
+  <div id="description" class="muted"></div>
+  <div id="updated" class="muted"></div>
+  <div id="disclaimer" class="note"></div>
+</header>
+<main>
+  <div id="map" role="img" aria-label="Map of forecast sites coloured by flood risk"></div>
+  <div class="legend" id="legend"></div>
+  <div id="sites"><p class="muted">Loading forecasts...</p></div>
+</main>
+<footer class="muted">
+  <p>Total water level forecasts from waves (CDIP MOP) and water levels (NOAA CO-OPS), with probabilities from
+  an ensemble of the model's uncertainties. "Highest" is the chance in the single most likely hour; "at least
+  one tide" is the chance over the whole forecast. Drain backflow is flagged where a storm drain inlet on a
+  network without a tide gate sits below the forecast still water level. Rain is the NOAA National Blend of Models
+  forecast averaged over the site; "most drains closed" means at least half of the bay-connected inlets are closed by
+  the still water level, and compound flooding is flagged for rain of 2.5 mm/h or more at those times. Times are local to each site. Data: <a href="data/latest.json">latest.json</a> &middot; <a href="data/history.csv">history.csv</a>
+  &middot; <a href="data/latest_forecast.geojson">GeoJSON</a>. Made with TRIM_Storm <span id="version"></span>.</p>
+</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+  "use strict";
+  const COLORS = ["--r0", "--r1", "--r2", "--r3", "--r4"].map(v =>
+    getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+  const NA = getComputedStyle(document.documentElement).getPropertyValue("--na").trim();
+  const el = (tag, attrs, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") e.className = v; else if (k === "style") e.style.cssText = v; else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k !== null && k !== undefined) e.append(k);
+    return e;
+  };
+  const pct = p => (p === null || p === undefined) ? "–" : Math.round(100 * p) + "%";
+  const m = v => (v === null || v === undefined) ? "–" : v.toFixed(2) + " m";
+  const color = lv => (lv === null || lv === undefined) ? NA : COLORS[Math.max(0, Math.min(4, Math.round(lv)))];
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  // Risk labels with the site's word for exceeding its thresholds ("flooding" by default).
+  const siteLabels = (labels, term) => labels.map(l => l.replace("flooding", term || "flooding"));
+  const LEVEL_PHRASE = ["low chance on any single tide", "minor possible", "minor likely",
+                        "moderate possible", "moderate likely"];
+  // "Thu, Nov 5, 6–8 AM": one window of consecutive hours, in the site's time zone
+  function span(a, b, tz) {
+    const A = new Date(a), B = new Date(b);
+    const f = (d, o) => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: tz || undefined }, o)).format(d);
+    const day = d => f(d, { weekday: "short", month: "short", day: "numeric" });
+    const hr = d => f(d, { hour: "numeric" });
+    if (A.getTime() === B.getTime()) return day(A) + ", " + hr(A);
+    if (day(A) !== day(B)) return day(A) + ", " + hr(A) + " – " + day(B) + ", " + hr(B);
+    const [ha, pa] = hr(A).split(" "), [hb, pb] = hr(B).split(" ");
+    return day(A) + ", " + (pa === pb ? ha : hr(A)) + "–" + hr(B);
+  }
+  function outlook(S, labels) {
+    const box = el("div", { class: "outlook" });
+    const term = S.hazard_term || "flooding";
+    const days = S.forecast_days ? Math.round(S.forecast_days) : null;
+    for (const t of S.transects) {
+      if (t.max_risk_level === null || t.max_risk_level === undefined) continue;
+      const lv = Math.round(t.max_risk_level);
+      const p = el("p", {}, el("b", {}, cap(term) + (S.transects.length > 1 ? " (" + t.transect_id + ")" : "") + ": "),
+        LEVEL_PHRASE[lv] + " (highest " + pct(t.max_P_minor) + ", " + when(t.time_max_P_minor, S.local_tz) + "). ");
+      if (t.P_any_minor !== null && t.P_any_minor !== undefined) {
+        p.append(el("b", {}, pct(t.P_any_minor) + " chance"), " of " + term + " on at least one tide" +
+          (days ? " in the next " + days + " days" : "") +
+          (t.P_any_moderate ? " (moderate: " + pct(t.P_any_moderate) + ")" : "") + ".");
+      }
+      box.append(p);
+    }
+    const dr = S.drains;
+    if (dr && dr.max_pct_closed !== null && dr.max_pct_closed !== undefined) {
+      const p = el("p", {}, el("b", {}, "Storm drains: "), "high tides close up to " + Math.round(dr.max_pct_closed) +
+        "% of the " + (dr.n_inlets || "") + " bay-connected inlets (" + when(dr.time_max_utc, S.local_tz) + "). ");
+      const w = dr.backflow_windows || [];
+      if (w.length) {
+        const n = Math.max(...w.map(x => x.max_inlets || 1));
+        p.append(el("b", {}, "Drain backflow flooding possible"),
+          " at " + n + " inlet" + (n > 1 ? "s" : "") + ": " + w.map(x => span(x.start_utc, x.end_utc, S.local_tz)).join("; ") + ".");
+      } else {
+        p.append("No drain backflow expected.");
+      }
+      box.append(p);
+    }
+    const rn = dr && dr.rain;
+    if (rn && rn.error) {
+      box.append(el("p", {}, el("b", {}, "Rain: "), "the rain forecast could not be read for this run, so rain " +
+        "while drains are closed is not checked."));
+    } else if (rn) {
+      const r = rn.rule || {}, tz = S.local_tz;
+      const src = rn.cycle_utc ? " (" + (rn.source || "NBM") + " forecast issued " + when(rn.cycle_utc, tz) + ")" : "";
+      const p = el("p", {}, el("b", {}, "Rain"), src + ": ");
+      if (!rn.total_mm) {
+        p.append("none forecast.");
+      } else {
+        p.append(num(rn.total_mm, 1) + " mm over the forecast, at most " + num(rn.max_mm_h, 1) + " mm/h (" +
+          when(rn.time_max_utc, tz) + "). ");
+        const cw = rn.compound_windows || [], lw = rn.closed_windows || [];
+        const pc = r.pct_closed !== undefined ? Math.round(r.pct_closed) : 50;
+        if (cw.length) {
+          p.append(el("b", {}, "Compound flooding possible"), ": rain of " + r.compound_mm_h + " mm/h or more while at least " +
+            pc + "% of drains are closed, " + cw.map(w => span(w.start_utc, w.end_utc, tz)).join("; ") + ". ");
+        }
+        if (lw.length) {
+          p.append(el("b", {}, "Rain while most drains are closed"), ": " + lw.map(w => span(w.start_utc, w.end_utc, tz) +
+            " (" + num(w.rain_mm, 1) + " mm, up to " + num(w.max_rain_mm_h, 1) + " mm/h; " + Math.round(w.max_pct_closed) +
+            "% of inlets closed)").join("; ") +
+            (cw.length ? "." : ". Light: below the " + r.compound_mm_h + " mm/h compound-flooding threshold."));
+        } else {
+          p.append("No rain while most drains are closed.");
+        }
+        const up = rn.upper;
+        if (up) {
+          p.append(el("span", { class: "muted" }, " NBM " + up.percentile + "th percentile: " + (up.total_mm > 0
+            ? num(up.total_mm, 1) + " mm in total."
+            : "0 mm throughout, so NBM's own probabilities give rain less than a " + (100 - up.percentile) +
+              "% chance in each 6 h; the amounts above are its single deterministic forecast.")));
+        }
+      }
+      box.append(p);
+    }
+    for (const pm of (S.pluvial || [])) {
+      const w = pm.rain_window_utc || [];
+      box.append(el("p", {}, el("b", {}, "Rain ponding: "),
+        (pm.kind === "from_compound" ? "while drains are closed" : "wettest " + Math.round((pm.duration_min || 60) / 60) + " h") +
+        (w.length === 2 ? " (" + span(w[0], w[1], S.local_tz) + ")" : "") + ", " + num(pm.rain_total_mm, 1) + " mm of rain: " +
+        num(pm.area_ha_over_10cm, 1) + " ha deeper than 10 cm, " + num(pm.area_ha_over_30cm, 1) + " ha deeper than 30 cm" +
+        " (map below)."));
+    }
+    return box;
+  }
+  const num = (v, d) => (v === null || v === undefined) ? "–" : Number(v).toFixed(d);
+  // Forecast rain ponding (r.sim.water depth) over OpenStreetMap; one layer per forecast-rain scenario
+  function pluvialMaps(S) {
+    const maps = S.pluvial || [];
+    if (!maps.length) return null;
+    const box = el("div", { class: "pluvial" }, el("h3", {}, "Rain ponding forecast"));
+    const div = el("div", { class: "pmap", role: "img", "aria-label": "Map of forecast rain ponding depth" });
+    box.append(div);
+    const lg = el("div", { class: "legend" }, el("span", { class: "muted" }, "Water depth: "));
+    for (const c of maps[0].classes) {
+      lg.append(el("span", {}, el("span", { class: "sq", style: "background:" + c.color }),
+        c.max_m === null ? "> " + Math.round(100 * c.min_m) + " cm" : Math.round(100 * c.min_m) + "–" + Math.round(100 * c.max_m) + " cm"));
+    }
+    box.append(lg);
+    for (const pm of maps) {
+      const w = pm.rain_window_utc || [];
+      box.append(el("p", { class: "muted", style: "margin:2px 0" }, pm.title + (w.length === 2 ? ", " + span(w[0], w[1], S.local_tz) : "") +
+        ": " + num(pm.rain_total_mm, 1) + " mm (rainfall excess " + num(pm.rain_excess_mm_hr, 2) + " mm/h); " +
+        (pm.drains_closed !== null && pm.drains_closed !== undefined ? pm.drains_closed + " of " + ((pm.drains_open || 0) + pm.drains_closed) +
+         " drains closed by a bay level of " + num(pm.bay_level_m, 2) + " m; " : "") +
+        "max depth " + num(pm.max_depth_m, 2) + " m."));
+    }
+    box.append(el("p", { class: "muted", style: "margin:2px 0;font-size:0.85rem" },
+      "Shallow ponding on the beach is included. Model: GRASS r.sim.water on a 2 m grid with open storm drains removing runoff; " +
+      "depths at the end of the rain window."));
+    requestAnimationFrame(() => {
+      if (!window.L) { div.replaceChildren(el("p", { class: "muted", style: "padding:12px" }, "Map unavailable.")); return; }
+      const mp = L.map(div, { scrollWheelZoom: false });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(mp);
+      const layers = {};
+      maps.forEach((pm, i) => {
+        const ov = L.imageOverlay(S.path + pm.png, pm.bounds_latlon, { opacity: 1, interactive: false });
+        layers[pm.title] = ov;
+        if (i === 0) ov.addTo(mp);
+      });
+      if (maps.length > 1) L.control.layers(layers, null, { collapsed: false }).addTo(mp);
+      mp.fitBounds(maps[0].bounds_latlon);
+    });
+    return box;
+  }
+  function when(iso, tz) {
+    if (!iso) return "–";
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    try {
+      return new Intl.DateTimeFormat("en-US", { timeZone: tz || undefined, weekday: "short", month: "short",
+        day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(d);
+    } catch (e) { return d.toUTCString(); }
+  }
+
+  fetch("data/latest.json", { cache: "no-store" }).then(r => {
+    if (!r.ok) throw new Error("data/latest.json: " + r.status);
+    return r.json();
+  }).then(render).catch(err => {
+    document.getElementById("sites").replaceChildren(el("p", { class: "stale" }, "Could not load the forecasts: " + err.message));
+  });
+
+  function render(D) {
+    document.title = D.title;
+    document.getElementById("title").textContent = D.title;
+    document.getElementById("description").textContent = D.description || "";
+    document.getElementById("disclaimer").textContent = D.disclaimer || "";
+    document.getElementById("version").textContent = D.trim_storm_version || "";
+    document.getElementById("updated").textContent = "Page updated " + when(D.generated_utc) +
+      ". Forecasts from the last " + D.days + " days.";
+    const labels = D.risk_labels;
+    const legend = document.getElementById("legend");
+    const terms = [...new Set(D.sites.map(S => S.hazard_term || "flooding"))];   // one shared term: use it in the legend
+    siteLabels(labels, terms.length === 1 ? terms[0] : "flooding")
+      .forEach((t, i) => legend.append(el("span", {}, el("span", { class: "sw", style: "background:" + COLORS[i] }), t)));
+
+    // map
+    let map = null;
+    if (window.L) {
+      map = L.map("map", { scrollWheelZoom: false });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 18,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(map);
+    } else {
+      const mp = document.getElementById("map"); mp.style.height = "auto";
+      mp.replaceChildren(el("p", { class: "muted", style: "padding:12px;margin:0" }, "Map unavailable (could not load the map library)."));
+    }
+    const pts = [];
+    const now = new Date();
+    const box = document.getElementById("sites");
+    box.replaceChildren();
+    for (const S of D.sites) {
+      const issued = new Date(S.issue_utc);
+      const ageH = (now - issued) / 3.6e6;
+      const stale = ageH > D.stale_hours;
+      const lv = Math.max(...S.transects.map(t => t.max_risk_level ?? -1));
+      const sl = siteLabels(labels, S.hazard_term);
+      const sec = el("section", { class: "site", id: "site-" + S.site });
+      const head = el("div", { class: "site-head" },
+        el("h2", {}, S.site),
+        el("span", { class: "badge", style: "background:" + color(lv < 0 ? null : lv) }, lv < 0 ? "No data" : sl[Math.round(lv)]),
+        el("span", { class: "muted" }, "Issued " + when(S.issue_utc, S.local_tz)),
+        stale ? el("span", { class: "stale" }, "Not updated for " + Math.round(ageH) + " h") : null);
+      sec.append(head);
+      sec.append(outlook(S, labels));
+
+      const hasOv = S.transects.some(t => t.structure_type);
+      const hasDr = S.transects.some(t => t.drain_max_pct_closed !== null && t.drain_max_pct_closed !== undefined);
+      const hdr = ["Transect", "Highest risk", "Highest P(minor)", "Peak (local)", "P(minor), any tide",
+                   "Highest P(moderate)", "Peak TWL (median)", "Minor / moderate threshold"];
+      if (hasOv) hdr.push("P(≥2% overtop)");
+      if (hasDr) hdr.push("Drains closed (max)");
+      const tb = el("tbody");
+      for (const t of S.transects) {
+        const cells = [t.transect_id,
+          el("span", {}, el("span", { class: "sw", style: "background:" + color(t.max_risk_level) }),
+             t.max_risk_level === null ? "–" : sl[Math.round(t.max_risk_level)]),
+          pct(t.max_P_minor), when(t.time_max_P_minor, S.local_tz), pct(t.P_any_minor), pct(t.max_P_moderate),
+          m(t.max_TWL_p50_m),
+          m(t.threshold_minor_m) + " / " + m(t.threshold_moderate_m)];
+        if (hasOv) cells.push(t.structure_type ? pct(t.max_P_ov_minor) : "–");
+        if (hasDr) cells.push(t.drain_max_pct_closed === null ? "–" : Math.round(t.drain_max_pct_closed) + "%");
+        tb.append(el("tr", {}, ...cells.map(c => el("td", {}, c))));
+        if (t.lat !== null && t.lon !== null && map) {
+          const mk = L.circleMarker([t.lat, t.lon], { radius: 8, color: "#222", weight: 1,
+            fillColor: color(t.max_risk_level), fillOpacity: 0.95 }).addTo(map);
+          mk.bindPopup("<b>" + S.site + " / " + t.transect_id + "</b><br>" +
+            (t.max_risk_level === null ? "" : sl[Math.round(t.max_risk_level)]) + "<br>" + cap(S.hazard_term || "flooding") +
+            ": " + pct(t.P_any_minor) + " chance on at least one tide" +
+            '<br><a href="#site-' + S.site + '">Details</a>');
+          pts.push([t.lat, t.lon]);
+        }
+      }
+      sec.append(el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {}, ...hdr.map(h => el("th", {}, h)))), tb)));
+      const pmaps = pluvialMaps(S);
+      if (pmaps) sec.append(pmaps);
+
+      const figs = el("div", { class: "figs" });
+      for (const f of S.figures) {
+        const src = S.path + f.file;
+        figs.append(el("figure", {}, el("a", { href: src }, el("img", { src: src, alt: f.title, loading: "lazy" })),
+                       el("figcaption", {}, f.title)));
+      }
+      if (S.figures.length) sec.append(figs);
+      if (S.tables.length) {
+        const p = el("p", { class: "muted" }, "Tables: ");
+        S.tables.forEach((f, i) => { if (i) p.append(" · "); p.append(el("a", { href: S.path + f.file }, f.file)); });
+        sec.append(p);
+      }
+      if (S.history && S.history.length > 1) {
+        const hb = el("tbody");
+        for (const h of S.history) {
+          hb.append(el("tr", {}, el("td", {}, when(h.issue_utc, S.local_tz)),
+            el("td", {}, el("span", { class: "sw", style: "background:" + color(h.max_risk_level) }),
+               h.max_risk_level === null ? "–" : sl[Math.round(h.max_risk_level)]),
+            el("td", {}, pct(h.max_P_minor)), el("td", {}, pct(h.max_P_moderate)),
+            el("td", {}, el("a", { href: h.path + (S.figures[0] ? S.figures[0].file : "") }, "figure"))));
+        }
+        sec.append(el("details", {}, el("summary", {}, "Earlier forecasts (" + (S.history.length - 1) + ")"),
+          el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {},
+            ...["Issued", "Highest risk", "P(minor)", "P(moderate)", ""].map(h => el("th", {}, h)))), hb))));
+      }
+      box.append(sec);
+    }
+    if (!D.sites.length) box.append(el("p", { class: "muted" }, "No forecasts published yet."));
+    if (map) {
+      if (pts.length) map.fitBounds(pts, { padding: [30, 30], maxZoom: 12 });
+      else map.setView([33.5, -118], 7);
+    }
+  }
+})();
+</script>
+</body>
+</html>
