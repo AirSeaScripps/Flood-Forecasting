@@ -1,0 +1,771 @@
+{
+ "schema": "trim_storm.web/1",
+ "title": "California Coastal Compound Flood Forecast (experimental)",
+ "description": "",
+ "buttons": [
+  {
+   "label": "Newport",
+   "site": "NEWPORT"
+  },
+  {
+   "label": "Santa Cruz",
+   "site": "SANTA_CRUZ"
+  },
+  {
+   "label": "Imperial Beach",
+   "site": null
+  },
+  {
+   "label": "Pismo Beach",
+   "site": null
+  },
+  {
+   "label": "Long Beach",
+   "site": null
+  },
+  {
+   "label": "San Clemente",
+   "site": null
+  },
+  {
+   "label": "Crystal Cove",
+   "site": null
+  },
+  {
+   "label": "Doheny State Beach",
+   "site": null
+  },
+  {
+   "label": "Half Moon Bay",
+   "site": null
+  }
+ ],
+ "disclaimer": "Experimental research forecast, updated automatically and not reviewed before posting. For official watches and warnings see the National Weather Service.",
+ "data_sources": [
+  "Terrain model: State of California / Scripps Institution of Oceanography repeat coastal lidar survey. Contact Luc Lenain (llenain@ucsd.edu) or Adam Young (adyoung@ucsd.edu)",
+  "Waves: [CDIP MOP](https://cdip.ucsd.edu/MOP_v1.1/)",
+  "Tides: [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/)",
+  "Rainfall: [NOAA National Blend of Models](https://vlab.noaa.gov/web/mdl/nbm)"
+ ],
+ "generated_utc": "2026-11-28T13:28Z",
+ "days": 14,
+ "stale_hours": 36,
+ "risk_labels": [
+  "No flooding predicted",
+  "Minor flooding possible",
+  "Minor flooding likely",
+  "Moderate flooding possible",
+  "Moderate flooding likely"
+ ],
+ "trim_storm_version": "0.2.0",
+ "sites": [
+  {
+   "site": "NEWPORT",
+   "label": "Newport",
+   "title": "Newport: Compound Flooding Forecast",
+   "detail": "data/sites/NEWPORT.json",
+   "local_tz": "America/Los_Angeles",
+   "run_id": "20261128T13Z",
+   "hazard_term": "berm overtopping",
+   "forecast_days": 6.0,
+   "drains": {
+    "n_inlets": 211,
+    "max_pct_closed": 85.8,
+    "time_max_utc": "2026-11-28T19:00Z",
+    "backflow_inlets": [
+     "CB07_047"
+    ],
+    "backflow_windows": [
+     {
+      "start_utc": "2026-11-28T18:00Z",
+      "end_utc": "2026-11-28T20:00Z",
+      "max_inlets": 1
+     }
+    ],
+    "hazards": {
+     "backflow": {
+      "max_risk_level": 4,
+      "time_max_utc": "2026-11-28T18:00Z",
+      "P_minor_max": 1.0,
+      "P_moderate_max": 0.974,
+      "spells": [
+       {
+        "start_utc": "2026-11-28T18:00Z",
+        "end_utc": "2026-11-28T20:00Z",
+        "start_local": "2026-11-28 10:00",
+        "end_local": "2026-11-28 12:00",
+        "max_risk_level": 4,
+        "time_max_utc": "2026-11-28T18:00Z",
+        "P_minor_max": 1.0,
+        "P_moderate_max": 0.974,
+        "median_h": 3.0
+       },
+       {
+        "start_utc": "2026-12-02T13:00Z",
+        "end_utc": "2026-12-02T13:00Z",
+        "start_local": "2026-12-02 05:00",
+        "end_local": "2026-12-02 05:00",
+        "max_risk_level": 1,
+        "time_max_utc": "2026-12-02T13:00Z",
+        "P_minor_max": 0.208,
+        "P_moderate_max": 0.008,
+        "median_h": 2.0
+       },
+       {
+        "start_utc": "2026-12-04T13:00Z",
+        "end_utc": "2026-12-04T13:00Z",
+        "start_local": "2026-12-04 05:00",
+        "end_local": "2026-12-04 05:00",
+        "max_risk_level": 1,
+        "time_max_utc": "2026-12-04T13:00Z",
+        "P_minor_max": 0.269,
+        "P_moderate_max": 0.0,
+        "median_h": 1.0
+       }
+      ],
+      "n_ungated_inlets": 1,
+      "lowest_rim_m": 1.983
+     },
+     "rain": {
+      "max_risk_level": 0,
+      "time_max_utc": null,
+      "P_minor_max": 0.169,
+      "P_moderate_max": 0.013,
+      "spells": []
+     },
+     "settings": {
+      "backflow_moderate_h": 3.0,
+      "rain_closed_minor_mm": 5.0,
+      "rain_closed_moderate_mm": 15.0,
+      "pct_closed": 50.0,
+      "n_draws": 1000,
+      "p_possible": 0.2,
+      "p_likely": 0.5
+     }
+    },
+    "rain": {
+     "source": "NBM",
+     "cycle_utc": "2026-11-28T00:00Z",
+     "total_mm": 40.0,
+     "max_mm_h": 2.27,
+     "time_max_utc": "2026-12-01T18:00Z",
+     "rule": {
+      "compound_mm_h": 2.5,
+      "pct_closed": 50.0,
+      "light_mm_h": 0.1
+     },
+     "closed_windows": [
+      {
+       "start_utc": "2026-12-01T12:00Z",
+       "end_utc": "2026-12-01T12:00Z",
+       "hours": 1,
+       "max_rain_mm_h": 1.22,
+       "max_pct_closed": 51.7,
+       "rain_mm": 1.22
+      },
+      {
+       "start_utc": "2026-12-02T11:00Z",
+       "end_utc": "2026-12-02T12:00Z",
+       "hours": 2,
+       "max_rain_mm_h": 0.47,
+       "max_pct_closed": 69.2,
+       "rain_mm": 0.73
+      },
+      {
+       "start_utc": "2026-12-04T13:00Z",
+       "end_utc": "2026-12-04T13:00Z",
+       "hours": 1,
+       "max_rain_mm_h": 0.17,
+       "max_pct_closed": 70.6,
+       "rain_mm": 0.17
+      }
+     ],
+     "compound_windows": [],
+     "upper": {
+      "percentile": 90,
+      "total_mm": 167.4,
+      "max_mm_h": 6.92
+     }
+    }
+   },
+   "creek": null,
+   "data_sources": [
+    "Terrain model: State of California / Scripps Institution of Oceanography repeat coastal lidar survey. Contact Luc Lenain (llenain@ucsd.edu) or Adam Young (adyoung@ucsd.edu)",
+    "Waves: [CDIP MOP](https://cdip.ucsd.edu/MOP_v1.1/)",
+    "Tides: [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/)",
+    "Rainfall: [NOAA National Blend of Models](https://vlab.noaa.gov/web/mdl/nbm)"
+   ],
+   "observe": {
+    "url": "https://script.google.com/macros/s/AKfycbwZIpJHeaTz_Z7tnhHbK4YNZYzpFmiYMwJ4QbNZqaJArfSAh4LQR0YZ-e4fiSDlmO0V/exec",
+    "window_h": [
+     0.25,
+     0.5,
+     1.0,
+     3.0
+    ],
+    "transects": {
+     "NEWPORT": [
+      {
+       "name": "top_of_berm",
+       "description": "Crest of the sand berm in front of 8th Street"
+      },
+      {
+       "name": "street_flooding",
+       "description": "Water reaches the lamppost at the end of 8th Street."
+      }
+     ]
+    }
+   },
+   "pluvial": [
+    {
+     "scenario": "storm_wettest6h",
+     "png": "pluvial/map_storm_wettest6h.png",
+     "title": "Rain ponding, wettest 6 h of the forecast",
+     "kind": "from_rain",
+     "bounds_latlon": [
+      [
+       33.598165,
+       -117.934204
+      ],
+      [
+       33.619693,
+       -117.90151
+      ]
+     ],
+     "classes": [
+      {
+       "min_m": 0.05,
+       "max_m": 0.1,
+       "color": "#c6dbef"
+      },
+      {
+       "min_m": 0.1,
+       "max_m": 0.2,
+       "color": "#6baed6"
+      },
+      {
+       "min_m": 0.2,
+       "max_m": 0.3,
+       "color": "#2171b5"
+      },
+      {
+       "min_m": 0.3,
+       "max_m": 0.5,
+       "color": "#08519c"
+      },
+      {
+       "min_m": 0.5,
+       "max_m": null,
+       "color": "#08306b"
+      }
+     ],
+     "rain_window_utc": [
+      "2026-12-01T12:00Z",
+      "2026-12-01T18:00Z"
+     ],
+     "rain_total_mm": 12.25,
+     "rain_excess_mm_hr": 1.837,
+     "duration_min": 360,
+     "bay_level_m": 1.779,
+     "drains_open": 140,
+     "drains_closed": 109,
+     "area_ha_over_10cm": 6.17,
+     "area_ha_over_30cm": 0.92,
+     "max_depth_m": 0.629
+    }
+   ],
+   "flood_map": null,
+   "issue_utc": "2026-11-28T13:00Z",
+   "path": "forecasts/NEWPORT/20261128T13Z/",
+   "age_hours": 0.5,
+   "stale": false,
+   "transects": [
+    {
+     "transect_id": "NEWPORT",
+     "lat": 33.6027,
+     "lon": -117.9111,
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.221,
+     "time_max_P_minor": "2026-12-01T23:00Z",
+     "max_P_moderate": 0.098,
+     "time_max_P_moderate": "2026-12-02T00:00Z",
+     "P_any_minor": 0.495,
+     "P_any_moderate": 0.24,
+     "max_TWL_p50_m": 4.0672,
+     "threshold_minor_m": 5.1,
+     "threshold_moderate_m": 6.1,
+     "structure_type": null,
+     "max_P_ov_minor": null,
+     "max_P_ov_moderate": null,
+     "runup_calibrated": true,
+     "drain_max_pct_closed": 85.8,
+     "drain_compound_hours": 0.0
+    }
+   ],
+   "figures": [
+    {
+     "file": "coastal_NEWPORT.png",
+     "title": "Coastal forecast, transect NEWPORT"
+    },
+    {
+     "file": "drain_timeline.png",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "diagnostics/overview_NEWPORT.png",
+     "title": "Wave energy and runup on the beach profile, transect NEWPORT"
+    }
+   ],
+   "tables": [
+    {
+     "file": "coastal_summary.csv",
+     "title": "Coastal forecast, transect summary"
+    },
+    {
+     "file": "coastal_timeseries.csv",
+     "title": "Coastal forecast, transect timeseries"
+    },
+    {
+     "file": "drain_timeline.csv",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "rain_timeseries.csv",
+     "title": "rain timeseries"
+    }
+   ],
+   "history": [
+    {
+     "run_id": "20261128T13Z",
+     "issue_utc": "2026-11-28T13:00Z",
+     "path": "forecasts/NEWPORT/20261128T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.221,
+     "max_P_moderate": 0.098
+    },
+    {
+     "run_id": "20261127T13Z",
+     "issue_utc": "2026-11-27T13:00Z",
+     "path": "forecasts/NEWPORT/20261127T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.309,
+     "max_P_moderate": 0.128
+    },
+    {
+     "run_id": "20261126T13Z",
+     "issue_utc": "2026-11-26T13:00Z",
+     "path": "forecasts/NEWPORT/20261126T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.405,
+     "max_P_moderate": 0.186
+    },
+    {
+     "run_id": "20261125T13Z",
+     "issue_utc": "2026-11-25T13:00Z",
+     "path": "forecasts/NEWPORT/20261125T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.546,
+     "max_P_moderate": 0.297
+    },
+    {
+     "run_id": "20261124T13Z",
+     "issue_utc": "2026-11-24T13:00Z",
+     "path": "forecasts/NEWPORT/20261124T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.606,
+     "max_P_moderate": 0.337
+    },
+    {
+     "run_id": "20261123T13Z",
+     "issue_utc": "2026-11-23T13:00Z",
+     "path": "forecasts/NEWPORT/20261123T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.592,
+     "max_P_moderate": 0.34
+    },
+    {
+     "run_id": "20261122T13Z",
+     "issue_utc": "2026-11-22T13:00Z",
+     "path": "forecasts/NEWPORT/20261122T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.566,
+     "max_P_moderate": 0.311
+    },
+    {
+     "run_id": "20261121T13Z",
+     "issue_utc": "2026-11-21T13:00Z",
+     "path": "forecasts/NEWPORT/20261121T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.594,
+     "max_P_moderate": 0.355
+    },
+    {
+     "run_id": "20261120T23Z",
+     "issue_utc": "2026-11-20T23:00Z",
+     "path": "forecasts/NEWPORT/20261120T23Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.565,
+     "max_P_moderate": 0.34
+    },
+    {
+     "run_id": "20261120T13Z",
+     "issue_utc": "2026-11-20T13:00Z",
+     "path": "forecasts/NEWPORT/20261120T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.584,
+     "max_P_moderate": 0.349
+    },
+    {
+     "run_id": "20261119T13Z",
+     "issue_utc": "2026-11-19T13:00Z",
+     "path": "forecasts/NEWPORT/20261119T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.534,
+     "max_P_moderate": 0.298
+    },
+    {
+     "run_id": "20261118T16Z",
+     "issue_utc": "2026-11-18T16:00Z",
+     "path": "forecasts/NEWPORT/20261118T16Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.526,
+     "max_P_moderate": 0.312
+    },
+    {
+     "run_id": "20261118T13Z",
+     "issue_utc": "2026-11-18T13:00Z",
+     "path": "forecasts/NEWPORT/20261118T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.409,
+     "max_P_moderate": 0.214
+    },
+    {
+     "run_id": "20261117T13Z",
+     "issue_utc": "2026-11-17T13:00Z",
+     "path": "forecasts/NEWPORT/20261117T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.337,
+     "max_P_moderate": 0.168
+    },
+    {
+     "run_id": "20261116T13Z",
+     "issue_utc": "2026-11-16T13:00Z",
+     "path": "forecasts/NEWPORT/20261116T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.204,
+     "max_P_moderate": 0.095
+    },
+    {
+     "run_id": "20261115T13Z",
+     "issue_utc": "2026-11-15T13:00Z",
+     "path": "forecasts/NEWPORT/20261115T13Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.289,
+     "max_P_moderate": 0.133
+    }
+   ]
+  },
+  {
+   "site": "SANTA_CRUZ",
+   "label": "Santa Cruz",
+   "title": "Santa Cruz: Compound Flooding Forecast",
+   "detail": "data/sites/SANTA_CRUZ.json",
+   "local_tz": "America/Los_Angeles",
+   "run_id": "20261128T13Z",
+   "hazard_term": "beach overtopping",
+   "forecast_days": 6.0,
+   "drains": {
+    "n_inlets": 60,
+    "max_pct_closed": 0.0,
+    "time_max_utc": "2026-11-28T13:00Z",
+    "backflow_inlets": [],
+    "backflow_windows": [],
+    "hazards": {
+     "backflow": {
+      "max_risk_level": 0,
+      "time_max_utc": null,
+      "P_minor_max": 0.0,
+      "P_moderate_max": 0.0,
+      "spells": [],
+      "n_ungated_inlets": 60,
+      "lowest_rim_m": 3.085
+     },
+     "rain": {
+      "max_risk_level": 0,
+      "time_max_utc": null,
+      "P_minor_max": 0.0,
+      "P_moderate_max": 0.0,
+      "spells": []
+     },
+     "settings": {
+      "backflow_moderate_h": 3.0,
+      "rain_closed_minor_mm": 5.0,
+      "rain_closed_moderate_mm": 15.0,
+      "pct_closed": 50.0,
+      "n_draws": 1000,
+      "p_possible": 0.2,
+      "p_likely": 0.5
+     }
+    },
+    "rain": {
+     "source": "NBM",
+     "cycle_utc": "2026-11-28T00:00Z",
+     "total_mm": 16.5,
+     "max_mm_h": 2.19,
+     "time_max_utc": "2026-11-30T12:00Z",
+     "rule": {
+      "compound_mm_h": 2.5,
+      "pct_closed": 50.0,
+      "light_mm_h": 0.1
+     },
+     "closed_windows": [],
+     "compound_windows": [],
+     "upper": {
+      "percentile": 90,
+      "total_mm": 38.0,
+      "max_mm_h": 2.08
+     }
+    }
+   },
+   "creek": {
+    "name": "Soquel Creek",
+    "elevated_cfs": 300.0,
+    "moderate_cfs": null,
+    "high_swl_m": 1.669,
+    "in_headline": true,
+    "hazard": {
+     "max_risk_level": 0,
+     "time_max_utc": null,
+     "P_minor_max": 0.0,
+     "P_moderate_max": 0.0,
+     "spells": []
+    },
+    "obs_last": {
+     "time_utc": "2026-11-28T13:00Z",
+     "flow_cfs": 9.5
+    },
+    "nwm": {
+     "short_range": {
+      "cycle_utc": "2026-11-28T11:00Z",
+      "seconds": 7.2,
+      "MB": 234.9
+     },
+     "medium_range": {
+      "cycle_utc": "2026-11-28T06:00Z",
+      "members": 6,
+      "seconds": 70.9,
+      "MB": 236.9,
+      "workers": 6
+     }
+    }
+   },
+   "data_sources": [
+    "Terrain model: State of California / Scripps Institution of Oceanography repeat coastal lidar survey. Contact Luc Lenain (llenain@ucsd.edu) or Adam Young (adyoung@ucsd.edu)",
+    "Waves: [CDIP MOP](https://cdip.ucsd.edu/MOP_v1.1/)",
+    "Tides: [NOAA CO-OPS](https://tidesandcurrents.noaa.gov/)",
+    "Rainfall: [NOAA National Blend of Models](https://vlab.noaa.gov/web/mdl/nbm)",
+    "Stream flow: [USGS (Soquel Creek at Soquel)](https://waterdata.usgs.gov/monitoring-location/USGS-11160000); [NOAA National Water Model](https://water.noaa.gov/about/nwm)"
+   ],
+   "observe": {
+    "url": "https://script.google.com/macros/s/AKfycbwZIpJHeaTz_Z7tnhHbK4YNZYzpFmiYMwJ4QbNZqaJArfSAh4LQR0YZ-e4fiSDlmO0V/exec",
+    "window_h": [
+     0.25,
+     0.5,
+     1.0,
+     3.0
+    ],
+    "transects": {
+     "Capitola": [
+      {
+       "name": "top_of_berm",
+       "description": "Water reaches the crest of the Capitola Beach sand berm in front of Zelda's"
+      },
+      {
+       "name": "back_of_berm",
+       "description": "Water reaches the seawall of Zelda's patio."
+      },
+      {
+       "name": "street_level",
+       "description": "Water floods the Capitola Beach parking lot."
+      }
+     ]
+    }
+   },
+   "pluvial": [],
+   "flood_map": null,
+   "issue_utc": "2026-11-28T13:00Z",
+   "path": "forecasts/SANTA_CRUZ/20261128T13Z/",
+   "age_hours": 0.5,
+   "stale": false,
+   "transects": [
+    {
+     "transect_id": "Capitola",
+     "lat": 36.9718,
+     "lon": -121.9507,
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.122,
+     "time_max_P_minor": "2026-11-30T23:00Z",
+     "max_P_moderate": 0.069,
+     "time_max_P_moderate": "2026-11-30T23:00Z",
+     "P_any_minor": 0.274,
+     "P_any_moderate": 0.154,
+     "max_TWL_p50_m": 3.1202,
+     "threshold_minor_m": 3.9,
+     "threshold_moderate_m": 4.3,
+     "structure_type": null,
+     "max_P_ov_minor": null,
+     "max_P_ov_moderate": null,
+     "runup_calibrated": false,
+     "drain_max_pct_closed": 0.0,
+     "drain_compound_hours": 0.0
+    }
+   ],
+   "figures": [
+    {
+     "file": "coastal_Capitola.png",
+     "title": "Coastal forecast, transect Capitola"
+    },
+    {
+     "file": "drain_timeline.png",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "diagnostics/overview_Capitola.png",
+     "title": "Wave energy and runup on the beach profile, transect Capitola"
+    }
+   ],
+   "tables": [
+    {
+     "file": "coastal_summary.csv",
+     "title": "Coastal forecast, transect summary"
+    },
+    {
+     "file": "coastal_timeseries.csv",
+     "title": "Coastal forecast, transect timeseries"
+    },
+    {
+     "file": "drain_timeline.csv",
+     "title": "Storm drains, bay level and rain"
+    },
+    {
+     "file": "rain_timeseries.csv",
+     "title": "rain timeseries"
+    }
+   ],
+   "history": [
+    {
+     "run_id": "20261128T13Z",
+     "issue_utc": "2026-11-28T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261128T13Z/",
+     "max_risk_level": 0.0,
+     "max_P_minor": 0.122,
+     "max_P_moderate": 0.069
+    },
+    {
+     "run_id": "20261127T13Z",
+     "issue_utc": "2026-11-27T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261127T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.369,
+     "max_P_moderate": 0.204
+    },
+    {
+     "run_id": "20261126T13Z",
+     "issue_utc": "2026-11-26T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261126T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.376,
+     "max_P_moderate": 0.226
+    },
+    {
+     "run_id": "20261125T13Z",
+     "issue_utc": "2026-11-25T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261125T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.592,
+     "max_P_moderate": 0.407
+    },
+    {
+     "run_id": "20261124T13Z",
+     "issue_utc": "2026-11-24T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261124T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.647,
+     "max_P_moderate": 0.452
+    },
+    {
+     "run_id": "20261123T13Z",
+     "issue_utc": "2026-11-23T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261123T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.625,
+     "max_P_moderate": 0.449
+    },
+    {
+     "run_id": "20261122T13Z",
+     "issue_utc": "2026-11-22T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261122T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.623,
+     "max_P_moderate": 0.445
+    },
+    {
+     "run_id": "20261121T13Z",
+     "issue_utc": "2026-11-21T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261121T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.574,
+     "max_P_moderate": 0.405
+    },
+    {
+     "run_id": "20261120T23Z",
+     "issue_utc": "2026-11-20T23:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261120T23Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.544,
+     "max_P_moderate": 0.382
+    },
+    {
+     "run_id": "20261120T19Z",
+     "issue_utc": "2026-11-20T19:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261120T19Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.532,
+     "max_P_moderate": 0.362
+    },
+    {
+     "run_id": "20261120T18Z",
+     "issue_utc": "2026-11-20T18:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261120T18Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.533,
+     "max_P_moderate": 0.368
+    },
+    {
+     "run_id": "20261120T13Z",
+     "issue_utc": "2026-11-20T13:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261120T13Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.441,
+     "max_P_moderate": 0.262
+    },
+    {
+     "run_id": "20261120T05Z",
+     "issue_utc": "2026-11-20T05:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261120T05Z/",
+     "max_risk_level": 1.0,
+     "max_P_minor": 0.241,
+     "max_P_moderate": 0.112
+    },
+    {
+     "run_id": "20261119T20Z",
+     "issue_utc": "2026-11-19T20:00Z",
+     "path": "forecasts/SANTA_CRUZ/20261119T20Z/",
+     "max_risk_level": 3.0,
+     "max_P_minor": 0.425,
+     "max_P_moderate": 0.255
+    }
+   ]
+  }
+ ]
+}

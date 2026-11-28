@@ -1,0 +1,140 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Report a flood observation</title>
+<!-- Page made by TRIM_Storm (trim-storm publish): the observation form of a transect, observe.html?site=<site>&transect=<id>.
+     It reads data/latest.json and posts to the site's observations.web.url (a Google Apps Script web app,
+     scripts/observations_web_app.gs). Add &dry=1 to fill it in without sending (the message is shown instead). -->
+<style>
+  :root { --bg: #ffffff; --fg: #1d2329; --muted: #5d6873; --line: #dde2e7; --card: #f6f8fa; --link: #0b62a3;
+          --ok-bg: #e5f3e8; --ok-fg: #1f5130; --err-bg: #fbe7e4; --err-fg: #7a2116; --sel: #0b62a3; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181c; --fg: #e4e8ec; --muted: #9aa5b0; --line: #2c343c; --card: #1b2127; --link: #6cb6f2;
+            --ok-bg: #173322; --ok-fg: #b6e2c3; --err-bg: #3a1c17; --err-fg: #f4b9ae; --sel: #6cb6f2; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg); font: 16px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { max-width: 640px; margin: 0 auto; padding: 16px 16px 40px; }
+  h1 { font-size: 1.35rem; margin: 4px 0 2px; }
+  a { color: var(--link); }
+  .muted { color: var(--muted); }
+  fieldset { border: 1px solid var(--line); border-radius: 8px; margin: 16px 0; padding: 10px 12px 12px; }
+  legend { font-weight: 600; padding: 0 4px; }
+  .lm { display: flex; gap: 10px; align-items: flex-start; padding: 9px 10px; border: 1px solid var(--line); border-radius: 8px;
+        margin: 8px 0 0; cursor: pointer; background: var(--bg); }
+  .lm:has(input:checked) { border-color: var(--sel); box-shadow: 0 0 0 1px var(--sel); background: var(--card); }
+  .lm input { margin-top: 4px; width: 18px; height: 18px; flex: none; }
+  .lm b { display: block; font-weight: 600; }
+  .lm span { font-size: .9rem; color: var(--muted); }
+  .row { display: flex; flex-wrap: wrap; gap: 10px 16px; }
+  .row label { display: flex; flex-direction: column; gap: 3px; font-size: .9rem; color: var(--muted); flex: 1 1 140px; }
+  input[type=date], input[type=time], input[type=text], input[type=email], select, textarea {
+    font: inherit; color: var(--fg); background: var(--bg); border: 1px solid var(--line); border-radius: 6px; padding: 7px 9px; width: 100%; }
+  textarea { min-height: 70px; resize: vertical; }
+  .hp { position: absolute; left: -9999px; width: 1px; height: 1px; overflow: hidden; }
+  button { font: inherit; font-weight: 600; padding: 10px 22px; border-radius: 999px; border: 0; background: var(--sel); color: #fff; cursor: pointer; }
+  button:disabled { opacity: .6; cursor: progress; }
+  .msg { border-radius: 8px; padding: 10px 12px; margin: 14px 0; }
+  .ok { background: var(--ok-bg); color: var(--ok-fg); }
+  .err { background: var(--err-bg); color: var(--err-fg); }
+  pre { white-space: pre-wrap; font-size: .82rem; background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px; }
+</style>
+</head>
+<body>
+<main>
+  <p><a href="./">&larr; Back to the forecasts</a></p>
+  <div id="app"><p class="muted">Loading...</p></div>
+</main>
+<script>
+"use strict";
+(function () {
+  const app = document.getElementById("app");
+  const q = new URLSearchParams(location.search);
+  const siteName = q.get("site"), tid = q.get("transect"), dry = q.get("dry") === "1";
+  const el = (tag, attrs, ...kids) => { const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) { if (k === "class") e.className = v; else if (v !== false && v !== null && v !== undefined) e.setAttribute(k, v === true ? "" : v); }
+    for (const k of kids) if (k !== null && k !== undefined && k !== false) e.append(k); return e; };
+  const fail = t => app.replaceChildren(el("p", { class: "msg err" }, t));
+
+  // The date and time now at the site (the form is in the site's local time, whatever the phone's zone).
+  function nowAt(tz) {
+    const p = Object.fromEntries(new Intl.DateTimeFormat("en-CA", { timeZone: tz, year: "numeric", month: "2-digit", day: "2-digit",
+      hour: "2-digit", minute: "2-digit", hourCycle: "h23" }).formatToParts(new Date()).map(x => [x.type, x.value]));
+    return { date: p.year + "-" + p.month + "-" + p.day, time: p.hour + ":" + p.minute };
+  }
+  const tzName = tz => (new Intl.DateTimeFormat("en-US", { timeZone: tz, timeZoneName: "long" }).formatToParts(new Date())
+    .find(x => x.type === "timeZoneName") || {}).value || tz;
+  const about = h => h < 1 ? "± " + Math.round(h * 60) + " min" : "± " + h + (h === 1 ? " hour" : " hours");
+
+  fetch("data/latest.json", { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(r.status); return r.json(); }).then(D => {
+    const S = (D.sites || []).find(s => s.site === siteName);
+    const O = S && S.observe;
+    const lms = O && O.transects && O.transects[tid];
+    if (!S || !O || !lms) { fail("There is no observation form for this location."); return; }
+    const place = (S.label || S.site) + (Object.keys(O.transects).length > 1 ? " (" + tid + ")" : "");
+    const now = nowAt(S.local_tz);
+
+    const lmBox = el("fieldset", {}, el("legend", {}, "How far did the water reach?"),
+      el("p", { class: "muted", style: "margin:2px 0 0;font-size:.9rem" }, "Choose the highest point the water (waves or still water) reached while you watched."));
+    const opts = lms.map(m => ({ value: m.name, title: (n => n.charAt(0).toUpperCase() + n.slice(1))(m.name.replace(/_/g, " ")), desc: m.description || "" }))
+      .concat([{ value: "none", title: "It didn't reach any of these", desc: "I watched and the water stayed below all of them." }]);
+    opts.forEach((o, i) => lmBox.append(el("label", { class: "lm" },
+      el("input", { type: "radio", name: "landmark", value: o.value, required: i === 0 }),
+      el("div", {}, el("b", {}, o.title), o.desc ? el("span", {}, o.desc) : null))));
+
+    const date = el("input", { type: "date", name: "date", value: now.date, max: now.date, required: true });
+    const time = el("input", { type: "time", name: "time", value: now.time, required: true });
+    const win = el("select", { name: "window_h" }, ...O.window_h.map((h, i) => el("option", { value: h, selected: i === Math.min(2, O.window_h.length - 1) }, about(h))));
+    const when = el("fieldset", {}, el("legend", {}, "When?"),
+      el("p", { class: "muted", style: "margin:2px 0 6px;font-size:.9rem" }, "Time at " + (S.label || S.site) + " (" + tzName(S.local_tz) + ")."),
+      el("div", { class: "row" }, el("label", {}, "Date", date), el("label", {}, "Time", time), el("label", {}, "How sure of the time?", win)));
+
+    const name = el("input", { type: "text", name: "observer", maxlength: 80, autocomplete: "name" });
+    const role = el("select", { name: "role" }, ...["", "Lifeguard", "City staff", "Volunteer", "Resident", "Other"]
+      .map(r => el("option", { value: r }, r || "Choose...")));
+    const contact = el("input", { type: "text", name: "contact", maxlength: 120, autocomplete: "email", placeholder: "e-mail or phone" });
+    const notes = el("textarea", { name: "notes", maxlength: 1000, placeholder: "Anything else: wave overtopping, debris, where exactly, ..." });
+    const who = el("fieldset", {}, el("legend", {}, "About you (optional)"),
+      el("div", { class: "row" }, el("label", {}, "Name", name), el("label", {}, "Role", role)),
+      el("div", { class: "row", style: "margin-top:10px" }, el("label", {}, "Contact, if we may ask a question (not published)", contact)),
+      el("div", { class: "row", style: "margin-top:10px" }, el("label", {}, "Notes", notes)));
+    const hp = el("label", { class: "hp", "aria-hidden": "true" }, "Website", el("input", { type: "text", name: "website", tabindex: "-1", autocomplete: "off" }));
+    const send = el("button", { type: "submit" }, "Send observation");
+    const out = el("div", {});
+    const form = el("form", { novalidate: false }, lmBox, when, who, hp, send, out);
+
+    app.replaceChildren(...[el("h1", {}, "Report a flood observation"),
+      el("p", { class: "muted", style: "margin:0" }, place),
+      el("p", {}, "Your report helps check and improve the flood forecast. Reports are reviewed before they are used."),
+      dry ? el("p", { class: "msg err" }, "Test mode: nothing is sent.") : null, form].filter(Boolean));
+
+    form.addEventListener("submit", ev => {
+      ev.preventDefault();
+      const lm = form.querySelector("input[name=landmark]:checked");
+      if (!lm) { out.replaceChildren(el("p", { class: "msg err" }, "Please choose how far the water reached.")); return; }
+      const msg = { site: S.site, transect: tid, landmark: lm.value, date: date.value, time: time.value, window_h: Number(win.value),
+                    observer: name.value.trim(), role: role.value, contact: contact.value.trim(), notes: notes.value.trim(),
+                    website: form.querySelector("input[name=website]").value, tz: S.local_tz, sent_utc: new Date().toISOString() };
+      if (!msg.date || !msg.time) { out.replaceChildren(el("p", { class: "msg err" }, "Please give the date and time.")); return; }
+      if (dry) { out.replaceChildren(el("p", { class: "msg ok" }, "Test mode: this would be sent."), el("pre", {}, JSON.stringify(msg, null, 1))); return; }
+      send.disabled = true; send.textContent = "Sending...";
+      fetch(O.url, { method: "POST", headers: { "Content-Type": "text/plain;charset=utf-8" }, body: JSON.stringify(msg) })
+        .then(r => r.json())
+        .then(a => {
+          if (!a.ok) throw new Error(a.error || "not accepted");
+          form.replaceWith(el("div", { class: "msg ok" }, el("b", {}, "Thank you! "), "Your observation was received (reference " + a.id + ")."),
+            el("p", {}, el("a", { href: location.href }, "Report another observation"), " · ", el("a", { href: "./" }, "Back to the forecasts")));
+        })
+        .catch(err => {
+          send.disabled = false; send.textContent = "Send observation";
+          out.replaceChildren(el("p", { class: "msg err" }, "Sorry, the observation could not be sent (" + err.message + "). Please try again in a moment."));
+        });
+    });
+  }).catch(err => fail("The form could not be loaded (" + err.message + ")."));
+})();
+</script>
+</body>
+</html>

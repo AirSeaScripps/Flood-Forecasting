@@ -1,0 +1,931 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>Coastal flood forecasts</title>
+<!-- Page made by TRIM_Storm (trim-storm publish). It reads data/latest.json; no server code. -->
+<link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" crossorigin="">
+<style>
+  :root {
+    --bg: #ffffff; --fg: #1d2329; --muted: #5d6873; --line: #dde2e7; --card: #f6f8fa; --link: #0b62a3;
+    --warn-bg: #fff4d6; --warn-fg: #6b4d00;
+    --r0: #6b8f71; --r1: #e3b505; --r2: #e07b00; --r3: #c8341f; --r4: #7d1f6b; --na: #9aa4ad;
+  }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #14181c; --fg: #e4e8ec; --muted: #9aa5b0; --line: #2c343c; --card: #1b2127; --link: #6cb6f2;
+            --warn-bg: #3d3112; --warn-fg: #f2d68a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; background: var(--bg); color: var(--fg);
+         font: 15px/1.45 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  header, main, footer { max-width: 1100px; margin: 0 auto; padding: 0 16px; }
+  header { padding-top: 20px; }
+  h1 { font-size: 1.5rem; margin: 0 0 4px; }
+  h2 { font-size: 1.2rem; margin: 0; }
+  a { color: var(--link); }
+  .muted { color: var(--muted); }
+  .note { background: var(--card); border: 1px solid var(--line); border-radius: 6px; padding: 8px 12px; margin: 12px 0;
+          font-size: 0.92rem; }
+  .stale { background: var(--warn-bg); color: var(--warn-fg); border-radius: 4px; padding: 2px 8px; font-size: 0.85rem; }
+  .sitebar { display: flex; flex-wrap: wrap; gap: 8px; margin: 16px 0 8px; }
+  .sitebtn { font: inherit; font-size: 0.92rem; font-weight: 600; padding: 7px 15px; border-radius: 999px;
+             border: 1px solid rgba(0,0,0,.18); cursor: pointer; }
+  .sitebtn[aria-pressed="true"] { outline: 2px solid var(--fg); outline-offset: 2px; }
+  .sitebtn:disabled { background: var(--card); color: var(--muted); border-color: var(--line); font-weight: 500;
+                      cursor: not-allowed; opacity: .7; }
+  .legend { display: flex; flex-wrap: wrap; gap: 6px 14px; font-size: 0.85rem; margin-bottom: 16px; }
+  .sw { display: inline-block; width: 11px; height: 11px; border-radius: 50%; margin-right: 5px; vertical-align: -1px; }
+  section.site { border: 1px solid var(--line); border-radius: 6px; padding: 14px 16px; margin: 16px 0; }
+  .site-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin-bottom: 8px; }
+  .badge { color: #fff; border-radius: 4px; padding: 2px 8px; font-size: 0.85rem; white-space: nowrap; }
+  .scroll { overflow-x: auto; }
+  table { border-collapse: collapse; width: 100%; font-size: 0.9rem; font-variant-numeric: tabular-nums; }
+  th, td { text-align: left; padding: 5px 8px; border-bottom: 1px solid var(--line); white-space: nowrap; }
+  th { color: var(--muted); font-weight: 600; }
+  .figs { display: grid; grid-template-columns: repeat(auto-fill, minmax(min(100%, 480px), 1fr)); gap: 14px;
+          margin-top: 14px; }
+  .outlook { margin: 4px 0 12px; }
+  .locmap { height: 110px; border: 1px solid var(--line); border-radius: 6px; margin: 4px 0 12px; }
+  .locmap .leaflet-tooltip { padding: 1px 5px; font-size: 11px; }
+  .pmap { height: 420px; border: 1px solid var(--line); border-radius: 6px; margin: 8px 0 4px; }
+  .pluvial h3 { font-size: 1rem; margin: 16px 0 2px; }
+  .pluvial .legend { margin: 4px 0 2px; }
+  .sq { display: inline-block; width: 14px; height: 11px; margin-right: 4px; vertical-align: -1px; border-radius: 2px; }
+  .outlook p { margin: 4px 0; }
+  figure { margin: 0; }
+  figure img { width: 100%; height: auto; border: 1px solid var(--line); border-radius: 4px; background: #fff; }
+  figcaption { font-size: 0.85rem; color: var(--muted); margin-top: 2px; }
+  details { margin-top: 10px; }
+  summary { cursor: pointer; color: var(--link); }
+  footer { padding-bottom: 28px; font-size: 0.85rem; }
+  footer .src-h { margin-bottom: 4px; font-weight: 600; }
+  footer ul { margin: 0 0 10px; padding-left: 20px; list-style: disc outside; }
+  footer li { display: list-item; }
+  /* interactive forecast of the selected site */
+  :root { --grid: #eceff2; --past: #f1f3f5; --s1: #2a78d6; --s2: #eb6834; --s3: #1baf7a; --crit: #d03b3b;
+          --water: #9ec5f4; --land: #e9dcc4; --land-line: #8a7550; }
+  @media (prefers-color-scheme: dark) {
+    :root { --grid: #232a31; --past: #1a1f24; --s1: #3987e5; --s2: #d95926; --s3: #199e70;
+            --water: #1c5cab; --land: #4a4232; --land-line: #b19a6e; }
+  }
+  .chips { display: flex; gap: 8px; flex-wrap: wrap; margin: 4px 0 12px; }
+  .chip { border: 1px solid var(--line); background: var(--card); color: var(--fg); border-radius: 999px;
+          padding: 4px 12px; font: inherit; font-size: 0.9rem; cursor: pointer; display: inline-flex; align-items: center; gap: 6px; }
+  .chip[aria-pressed="true"] { border-color: var(--s1); box-shadow: inset 0 0 0 1px var(--s1); }
+  .chip .sw { margin: 0; }
+  .detail-head { display: flex; flex-wrap: wrap; align-items: baseline; gap: 6px 14px; margin: 6px 0 2px; }
+  .layout { display: grid; grid-template-columns: minmax(0, 1fr) 290px; gap: 18px; align-items: start; }
+  @media (max-width: 860px) { .layout { grid-template-columns: 1fr; } .layout > aside { order: -1; } }
+  .readout { position: sticky; top: 8px; border: 1px solid var(--line); border-radius: 8px; background: var(--bg);
+             padding: 12px 14px; z-index: 5; }
+  @media (max-width: 860px) { .readout { top: 0; border-radius: 0 0 8px 8px; padding: 8px 12px; box-shadow: 0 2px 6px rgba(0,0,0,.08); } }
+  .ro-time { font-weight: 600; }
+  .ro-tag { font-size: .78rem; color: var(--muted); }
+  .ro-risk { display: inline-flex; align-items: center; gap: 6px; font-size: .9rem; margin: 6px 0 8px; }
+  .ro-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 8px 12px; }
+  @media (max-width: 860px) { .ro-grid { grid-template-columns: repeat(4, 1fr); gap: 4px 8px; } .ro-more { display: none; } }
+  .stat .v { font-size: 1.25rem; font-weight: 600; font-variant-numeric: tabular-nums; line-height: 1.2; }
+  @media (max-width: 860px) { .stat .v { font-size: 1rem; } }
+  .stat .k { font-size: .76rem; color: var(--muted); line-height: 1.25; }
+  .ro-more { margin-top: 10px; padding-top: 8px; border-top: 1px solid var(--line); font-size: .84rem; color: var(--muted);
+             font-variant-numeric: tabular-nums; }
+  .ro-more div { display: flex; justify-content: space-between; gap: 8px; }
+  .ro-more b { color: var(--fg); font-weight: 500; text-align: right; }
+  .stack { position: relative; touch-action: pan-y; user-select: none; -webkit-user-select: none; outline: none; }
+  .stack:focus-visible { box-shadow: 0 0 0 2px var(--s1); border-radius: 6px; }
+  .panel svg, .panel canvas { display: block; width: 100%; }
+  /* each plot and its legend in a light box; box-shadow (not border/padding) keeps the plots exactly the stack's
+     width, so the hour cursor stays aligned with every plot */
+  .stack .panel { box-shadow: 0 0 0 1px var(--line); border-radius: 6px; margin: 0 0 10px; padding: 0 0 4px; }
+  .stack .panel .ptitle { padding: 0 8px; }
+  .runup { box-shadow: 0 0 0 1px var(--line); border-radius: 6px; padding: 0 8px 6px; }
+  .ptitle { font-size: .8rem; color: var(--muted); margin: 6px 0 0; display: flex; gap: 4px 12px; flex-wrap: wrap; align-items: center; }
+  .ptitle b { color: var(--fg); font-weight: 600; }
+  .key { display: inline-flex; align-items: center; gap: 4px; }
+  .key i { display: inline-block; width: 14px; height: 0; border-top: 2px solid; }
+  .key i.band { height: 9px; border: 0; opacity: .35; }
+  .key i.dash { border-top-style: dashed; }
+  .key i.pt { width: 6px; height: 6px; border: 0; border-radius: 50%; }
+  .key i.hatch { height: 9px; border: 0; opacity: .7; background: repeating-linear-gradient(135deg, var(--crit) 0 2px, transparent 2px 5px); }
+  .cursor { position: absolute; top: 0; bottom: 0; width: 0; border-left: 1.5px solid var(--fg); pointer-events: none; z-index: 3; }
+  .cursor::before { content: ""; position: absolute; top: -2px; left: -6px; border: 5px solid transparent; border-top: 7px solid var(--fg); }
+  .hint { font-size: .82rem; color: var(--muted); margin: 2px 0 6px; }
+  .runup { margin-top: 18px; }
+  .obsline { margin: 6px 0 10px; font-size: .9rem; }
+  .obsbtn { display: inline-block; font-weight: 600; padding: 5px 14px; border-radius: 999px; border: 1px solid var(--link);
+            color: var(--link); text-decoration: none; }
+  .obsbtn:hover { background: var(--card); }
+  details.more { margin: 18px 0; border-top: 1px solid var(--line); padding-top: 10px; }
+  :root { --fmwin: rgba(240, 190, 30, .28); --hz-bf: #b0478f; }
+  .hazards { margin: 2px 0 10px; font-size: .95rem; }
+  .hazards > div { margin: 2px 0; padding-left: 16px; text-indent: -16px; }   /* wrapped text lines up after the dot */
+  .hazards .sw { margin-right: 4px; }
+  .ro-hz { font-size: .84rem; margin: -2px 0 8px; }
+  .ro-hz div { display: flex; flex-wrap: wrap; justify-content: space-between; column-gap: 8px; }
+  .ro-hz div > span { white-space: nowrap; }
+  .ro-hz b { font-weight: 500; text-align: right; margin-left: auto; }
+  .floodmap { margin: 8px 0 18px; }
+  .floodmap h3 { margin: 6px 0 2px; font-size: 1.05rem; }
+  .fm-stats { display: flex; flex-wrap: wrap; gap: 6px 26px; margin: 6px 0; }
+  .fm-stats .v { font-size: 1.2rem; font-weight: 600; font-variant-numeric: tabular-nums; }
+  .fm-stats .k { font-size: .78rem; color: var(--muted); }
+  .fm-map { height: 380px; }
+
+</style>
+</head>
+<body>
+<header>
+  <h1 id="title">Coastal flood forecasts</h1>
+  <div id="description" class="muted"></div>
+  <div id="updated" class="muted"></div>
+  <div id="disclaimer" class="note"></div>
+</header>
+<main>
+  <nav class="sitebar" id="sitechips" aria-label="Sites"></nav>
+  <div class="legend" id="legend"></div>
+  <div id="sites"><p class="muted">Loading forecasts...</p></div>
+</main>
+<footer class="muted">
+  <div id="sources"></div>
+  <p>Total Water Level (TWL) and compound flood forecasting made with TRIM_Storm <span id="version"></span><br>
+  Times are local to each site. Data: <a href="data/latest.json">latest.json</a> &middot; <a href="data/history.csv">history.csv</a>
+  &middot; <a href="data/latest_forecast.geojson">GeoJSON</a>.</p>
+</footer>
+<script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" crossorigin=""></script>
+<script>
+(function () {
+  "use strict";
+  const COLORS = ["--r0", "--r1", "--r2", "--r3", "--r4"].map(v =>
+    getComputedStyle(document.documentElement).getPropertyValue(v).trim());
+  const NA = getComputedStyle(document.documentElement).getPropertyValue("--na").trim();
+  const el = (tag, attrs, ...kids) => {
+    const e = document.createElement(tag);
+    for (const [k, v] of Object.entries(attrs || {})) {
+      if (k === "class") e.className = v; else if (k === "style") e.style.cssText = v; else e.setAttribute(k, v);
+    }
+    for (const k of kids) if (k !== null && k !== undefined) e.append(k);
+    return e;
+  };
+  const pct = p => (p === null || p === undefined) ? "–" : Math.round(100 * p) + "%";
+  const m = v => (v === null || v === undefined) ? "–" : v.toFixed(2) + " m";
+  const color = lv => (lv === null || lv === undefined) ? NA : COLORS[Math.max(0, Math.min(4, Math.round(lv)))];
+  const cap = s => s ? s.charAt(0).toUpperCase() + s.slice(1) : s;
+  // Risk labels with the site's word for exceeding its thresholds ("flooding" by default).
+  const siteLabels = (labels, term) => labels.map(l => l.replace("flooding", term || "flooding"));
+  const LEVEL_PHRASE = ["low chance on any single tide", "minor possible", "minor likely",
+                        "moderate possible", "moderate likely"];
+  // "Thu, Nov 5, 6–8 AM": one window of consecutive hours, in the site's time zone
+  function span(a, b, tz) {
+    const A = new Date(a), B = new Date(b);
+    const f = (d, o) => new Intl.DateTimeFormat("en-US", Object.assign({ timeZone: tz || undefined }, o)).format(d);
+    const day = d => f(d, { weekday: "short", month: "short", day: "numeric" });
+    const hr = d => f(d, { hour: "numeric" });
+    if (A.getTime() === B.getTime()) return day(A) + ", " + hr(A);
+    if (day(A) !== day(B)) return day(A) + ", " + hr(A) + " – " + day(B) + ", " + hr(B);
+    const [ha, pa] = hr(A).split(" "), [hb, pb] = hr(B).split(" ");
+    return day(A) + ", " + (pa === pb ? ha : hr(A)) + "–" + hr(B);
+  }
+  function outlook(S, labels) {
+    const box = el("div", { class: "outlook" });
+    const term = S.hazard_term || "flooding";
+    const days = S.forecast_days ? Math.round(S.forecast_days) : null;
+    for (const t of S.transects) {
+      if (t.max_risk_level === null || t.max_risk_level === undefined) continue;
+      const lv = Math.round(t.max_risk_level);
+      const p = el("p", {}, el("b", {}, cap(term) + (S.transects.length > 1 ? " (" + t.transect_id + ")" : "") + ": "),
+        LEVEL_PHRASE[lv] + " (highest " + pct(t.max_P_minor) + ", " + when(t.time_max_P_minor, S.local_tz) + "). ");
+      if (t.P_any_minor !== null && t.P_any_minor !== undefined) {
+        p.append(el("b", {}, pct(t.P_any_minor) + " chance"), " of " + term + " on at least one tide" +
+          (days ? " in the next " + days + " days" : "") +
+          (t.P_any_moderate ? " (moderate: " + pct(t.P_any_moderate) + ")" : "") + ".");
+      }
+      box.append(p);
+    }
+    const dr = S.drains;
+    if (dr && dr.max_pct_closed !== null && dr.max_pct_closed !== undefined) {
+      const p = el("p", {}, el("b", {}, "Storm drains: "), "high tides close up to " + Math.round(dr.max_pct_closed) +
+        "% of the " + (dr.n_inlets || "") + " bay-connected inlets (" + when(dr.time_max_utc, S.local_tz) + "). ");
+      const w = dr.backflow_windows || [];
+      if (w.length) {
+        const n = Math.max(...w.map(x => x.max_inlets || 1));
+        p.append(el("b", {}, "Drain backflow flooding possible"),
+          " at " + n + " inlet" + (n > 1 ? "s" : "") + ": " + w.map(x => span(x.start_utc, x.end_utc, S.local_tz)).join("; ") + ".");
+      } else {
+        p.append("No drain backflow expected.");
+      }
+      box.append(p);
+    }
+    const rn = dr && dr.rain;
+    if (rn && rn.error) {
+      box.append(el("p", {}, el("b", {}, "Rain: "), "the rain forecast could not be read for this run, so rain " +
+        "while drains are closed is not checked."));
+    } else if (rn) {
+      const r = rn.rule || {}, tz = S.local_tz;
+      const src = rn.cycle_utc ? " (" + (rn.source || "NBM") + " forecast issued " + when(rn.cycle_utc, tz) + ")" : "";
+      const p = el("p", {}, el("b", {}, "Rain"), src + ": ");
+      if (!rn.total_mm) {
+        p.append("none forecast.");
+      } else {
+        p.append(num(rn.total_mm, 1) + " mm over the forecast, at most " + num(rn.max_mm_h, 1) + " mm/h (" +
+          when(rn.time_max_utc, tz) + "). ");
+        const cw = rn.compound_windows || [], lw = rn.closed_windows || [];
+        const pc = r.pct_closed !== undefined ? Math.round(r.pct_closed) : 50;
+        if (cw.length) {
+          p.append(el("b", {}, "Compound flooding possible"), ": rain of " + r.compound_mm_h + " mm/h or more while at least " +
+            pc + "% of drains are closed, " + cw.map(w => span(w.start_utc, w.end_utc, tz)).join("; ") + ". ");
+        }
+        if (lw.length) {
+          p.append(el("b", {}, "Rain while most drains are closed"), ": " + lw.map(w => span(w.start_utc, w.end_utc, tz) +
+            " (" + num(w.rain_mm, 1) + " mm, up to " + num(w.max_rain_mm_h, 1) + " mm/h; " + Math.round(w.max_pct_closed) +
+            "% of inlets closed)").join("; ") +
+            (cw.length ? "." : ". Light: below the " + r.compound_mm_h + " mm/h compound-flooding threshold."));
+        } else {
+          p.append("No rain while most drains are closed.");
+        }
+        const up = rn.upper;
+        if (up) {
+          p.append(el("span", { class: "muted" }, " NBM " + up.percentile + "th percentile: " + (up.total_mm > 0
+            ? num(up.total_mm, 1) + " mm in total."
+            : "0 mm throughout, so NBM's own probabilities give rain less than a " + (100 - up.percentile) +
+              "% chance in each 6 h; the amounts above are its single deterministic forecast.")));
+        }
+      }
+      box.append(p);
+    }
+    for (const pm of (S.pluvial || [])) {
+      const w = pm.rain_window_utc || [];
+      box.append(el("p", {}, el("b", {}, "Rain ponding: "),
+        (pm.kind === "from_compound" ? "while drains are closed" : "wettest " + Math.round((pm.duration_min || 60) / 60) + " h") +
+        (w.length === 2 ? " (" + span(w[0], w[1], S.local_tz) + ")" : "") + ", " + num(pm.rain_total_mm, 1) + " mm of rain: " +
+        num(pm.area_ha_over_10cm, 1) + " ha deeper than 10 cm, " + num(pm.area_ha_over_30cm, 1) + " ha deeper than 30 cm" +
+        " (map below)."));
+    }
+    return box;
+  }
+  const num = (v, d) => (v === null || v === undefined) ? "–" : Number(v).toFixed(d);
+  // Forecast rain ponding (r.sim.water depth) over OpenStreetMap; one layer per forecast-rain scenario
+  // The largest flooding in the next hours (flood_map.json of the pluvial run of this forecast)
+  // The three hazards of a site's headline, each with a level 0-4: berm overtopping (the coastal ensemble of each
+  // transect) and the drain hazards (backflow; rain while the drains are closed) from drainage.json.
+  const phrase = lv => ["none", "minor possible", "minor likely", "moderate possible", "moderate likely"][Math.round(lv)] || "none";
+  function siteHazards(S) {
+    const out = [];
+    const berm = S.transects.filter(t => t.max_risk_level !== null && t.max_risk_level !== undefined);
+    if (berm.length) {
+      const t = berm.reduce((a, b) => (b.max_risk_level > a.max_risk_level ? b : a));
+      out.push({ key: "berm", name: S.hazard_term || "flooding", level: Math.round(t.max_risk_level),
+        when: t.max_risk_level >= 3 ? t.time_max_P_moderate : t.time_max_P_minor });
+    }
+    const hz = (S.drains && S.drains.hazards) || {};
+    const score = b => [b.max_risk_level, b.P_moderate_max, b.P_minor_max, b.median_h ?? b.median_mm ?? b.peak_cfs ?? 0];
+    const better = (a, b) => { const x = score(a), y = score(b); for (let k = 0; k < x.length; k++) if (x[k] !== y[k]) return y[k] > x[k]; return false; };
+    const best = h => (h.spells || []).reduce((a, b) => (!a || better(a, b) ? b : a), null);
+    if (hz.backflow) {
+      const b = best(hz.backflow);
+      out.push({ key: "backflow", name: "drain backflow", level: hz.backflow.max_risk_level, when: b && b.time_max_utc,
+        span: b && [b.start_utc, b.end_utc], detail: b ? "~" + Math.round(b.median_h) + " h" : "", n: (hz.backflow.spells || []).length });
+    }
+    if (hz.rain) {
+      const b = best(hz.rain);
+      out.push({ key: "rain", name: "rain flooding with closed drains", level: hz.rain.max_risk_level, when: b && b.time_max_utc,
+        span: b && [b.start_utc, b.end_utc], detail: b ? "~" + Math.round(b.median_mm) + " mm" : "" });
+    }
+    const ck = S.creek && S.creek.hazard;
+    if (ck) {
+      const b = best(ck);
+      out.push({ key: "creek", name: "creek and high-tide flooding", level: ck.max_risk_level, when: b && b.time_max_utc, headline: S.creek.in_headline !== false,
+        span: b && [b.start_utc, b.end_utc], detail: b && b.peak_cfs ? (S.creek.name || "creek") + " forecast to ~" + Math.round(b.peak_cfs) + " cfs" : "" });
+    }
+    return out;
+  }
+  function hazardLine(S) {
+    const hz = siteHazards(S).sort((a, b) => b.level - a.level);
+    if (!hz.length) return null;
+    const box = el("div", { class: "hazards" });
+    hz.forEach(h => {
+      const p = el("div", {});
+      box.append(p);
+      const words = h.level > 0 ? cap(phrase(h.level).replace(/^(minor|moderate) /, "$1 " + h.name + " ")) : "No " + (h.none || h.name);
+      p.append(el("span", { class: "sw", style: "background:" + color(h.level) }), el("b", {}, words));
+      if (h.level > 0 && (h.span || h.when)) {
+        const w = h.span && h.span[0] !== h.span[1] ? span(h.span[0], h.span[1], S.local_tz) : when(h.when, S.local_tz);
+        p.append(" (" + w + (h.detail ? ", " + h.detail : "") + (h.n > 1 ? "; " + h.n + " high tides" : "") + ")");
+      }
+    });
+    return box;
+  }
+
+  function floodMap(S) {
+    const F = S.flood_map;
+    if (!F) return null;
+    const hrs = Math.round(F.hours || 72), days = hrs % 24 === 0 ? (hrs / 24) + " days" : hrs + " h";
+    const box = el("div", { class: "floodmap" });
+    const W = F.worst;
+    if (!W) {
+      box.append(el("h3", {}, "No flooding expected in the next " + days),
+        el("p", { class: "muted", style: "margin:2px 0" }, "Checked: " + (F.candidates || []).length + " high tide(s) and rain window(s) up to " +
+          when(F.end_utc, S.local_tz) + ". Rain ponding and bay water deeper than " + Math.round(100 * F.min_depth_m) + " cm would be mapped here."));
+      return box;
+    }
+    const tz = S.local_tz, w = W.window_utc;
+    const what = W.kind === "rain"
+      ? "Rain " + num(W.rain_total_mm, 1) + " mm while the bay is at " + num(W.bay_level_m, 2) + " m"
+      : "High tide: the bay at " + num(W.bay_level_m, 2) + " m (forecast median still water level), no rain";
+    box.append(el("h3", {}, "Largest flooding in the next " + days + ": " + (w[0] === w[1] ? when(w[0], tz) : span(w[0], w[1], tz))),
+      el("p", { class: "muted", style: "margin:2px 0" }, what + "."));
+    const stats = el("div", { class: "fm-stats" });
+    const stat = (v, k) => stats.append(el("div", {}, el("div", { class: "v" }, v), el("div", { class: "k" }, k)));
+    stat(num(W.area_ha, 1) + " ha", "flooded (deeper than " + Math.round(100 * F.min_depth_m) + " cm)");
+    if (W.area_rain_ha > 0) stat(num(W.area_rain_ha, 1) + " ha", "rain ponding");
+    stat(num(W.area_bay_ha, W.area_bay_ha < 1 ? 2 : 1) + " ha", "bay water" + (W.area_drains_ha > 0 ? " (" + num(W.area_drains_ha, 2) + " ha through drains)" : ""));
+    if (W.drains_closed !== null && W.drains_closed !== undefined) stat(W.drains_closed + " of " + ((W.drains_open || 0) + W.drains_closed), "drain inlets closed");
+    box.append(stats);
+    const lg = el("div", { class: "legend" });
+    for (const c of F.classes) lg.append(el("span", {}, el("span", { class: "sq", style: "background:" + c.color }), c.label));
+    box.append(lg);
+    const div = el("div", { class: "pmap fm-map", role: "img", "aria-label": "Map of the largest forecast flooding in the next " + days });
+    box.append(div);
+    box.append(el("p", { class: "muted", style: "margin:4px 0;font-size:0.85rem" },
+      "The worst of " + (F.candidates || []).length + " candidates by flooded area: every high tide in the next " + days +
+      " (bay water at the forecast median still water level" + (F.normally_wet_m !== null && F.normally_wet_m !== undefined ? ", on land dry at " + num(F.normally_wet_m, 2) + " m" : "") +
+      ") and the forecast rain windows (rain ponding from GRASS r.sim.water, puddles under " + Math.round(F.min_puddle_m2) + " m² left out). " +
+      "Bay water fills every connected low area, overland or up through ungated storm drains: an upper bound for a short tide peak. Berm overtopping is not mapped; see the chance of flooding below."));
+    requestAnimationFrame(() => {
+      if (!window.L) { div.replaceChildren(el("p", { class: "muted", style: "padding:12px" }, "Map unavailable.")); return; }
+      const mp = L.map(div, { scrollWheelZoom: false, zoomSnap: 0.25 });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(mp);
+      L.imageOverlay(S.path + F.png, F.bounds_latlon, { opacity: 1, interactive: false }).addTo(mp);
+      mp.fitBounds(F.bounds_latlon);
+    });
+    return box;
+  }
+  // A narrow, fixed street map of where the site's forecasts are: a dot at each transect's map location.
+  function locMap(S) {
+    const pts = (S.transects || []).filter(t => t.lat !== null && t.lat !== undefined && t.lon !== null && t.lon !== undefined)
+      .map(t => ({ ll: [t.lat, t.lon], id: t.transect_id }));
+    if (!pts.length) return null;
+    const div = el("div", { class: "locmap", role: "img", "aria-label": "Map of the forecast location" + (pts.length > 1 ? "s" : "") });
+    requestAnimationFrame(() => {
+      if (!window.L) { div.remove(); return; }
+      const mp = L.map(div, { zoomControl: false, dragging: false, scrollWheelZoom: false, doubleClickZoom: false, boxZoom: false,
+        keyboard: false, touchZoom: false, tap: false, attributionControl: true });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' }).addTo(mp);
+      pts.forEach(p => {
+        const m = L.circleMarker(p.ll, { radius: 8, color: "#fff", weight: 2, fillColor: "#000", fillOpacity: 1, interactive: false }).addTo(mp);
+        if (pts.length > 1) m.bindTooltip(p.id, { permanent: true, direction: "right", offset: [9, 0] });
+      });
+      if (pts.length === 1) mp.setView(pts[0].ll, 14);
+      else mp.fitBounds(pts.map(p => p.ll), { padding: [30, 30], maxZoom: 15 });
+    });
+    return div;
+  }
+  function pluvialMaps(S) {
+    const maps = S.pluvial || [];
+    if (!maps.length) return null;
+    const box = el("div", { class: "pluvial" }, el("h3", {}, "Rain ponding forecast"));
+    const div = el("div", { class: "pmap", role: "img", "aria-label": "Map of forecast rain ponding depth" });
+    box.append(div);
+    const lg = el("div", { class: "legend" }, el("span", { class: "muted" }, "Water depth: "));
+    for (const c of maps[0].classes) {
+      lg.append(el("span", {}, el("span", { class: "sq", style: "background:" + c.color }),
+        c.max_m === null ? "> " + Math.round(100 * c.min_m) + " cm" : Math.round(100 * c.min_m) + "–" + Math.round(100 * c.max_m) + " cm"));
+    }
+    box.append(lg);
+    for (const pm of maps) {
+      const w = pm.rain_window_utc || [];
+      box.append(el("p", { class: "muted", style: "margin:2px 0" }, pm.title + (w.length === 2 ? ", " + span(w[0], w[1], S.local_tz) : "") +
+        ": " + num(pm.rain_total_mm, 1) + " mm (rainfall excess " + num(pm.rain_excess_mm_hr, 2) + " mm/h); " +
+        (pm.drains_closed !== null && pm.drains_closed !== undefined ? pm.drains_closed + " of " + ((pm.drains_open || 0) + pm.drains_closed) +
+         " drains closed by a bay level of " + num(pm.bay_level_m, 2) + " m; " : "") +
+        "max depth " + num(pm.max_depth_m, 2) + " m."));
+    }
+    box.append(el("p", { class: "muted", style: "margin:2px 0;font-size:0.85rem" },
+      "Shallow ponding on the beach is included. Model: GRASS r.sim.water on a 2 m grid with open storm drains removing runoff; " +
+      "depths at the end of the rain window."));
+    requestAnimationFrame(() => {
+      if (!window.L) { div.replaceChildren(el("p", { class: "muted", style: "padding:12px" }, "Map unavailable.")); return; }
+      const mp = L.map(div, { scrollWheelZoom: false });
+      L.tileLayer("https://tile.openstreetmap.org/{z}/{x}/{y}.png", { maxZoom: 19,
+        attribution: '&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors' }).addTo(mp);
+      const layers = {};
+      maps.forEach((pm, i) => {
+        const ov = L.imageOverlay(S.path + pm.png, pm.bounds_latlon, { opacity: 1, interactive: false });
+        layers[pm.title] = ov;
+        if (i === 0) ov.addTo(mp);
+      });
+      if (maps.length > 1) L.control.layers(layers, null, { collapsed: false }).addTo(mp);
+      mp.fitBounds(maps[0].bounds_latlon);
+    });
+    return box;
+  }
+  function ink(bg) {                        // dark or white text, whichever reads better on bg (#rrggbb)
+    const m = /^#?([0-9a-f]{6})$/i.exec(String(bg || "").trim());
+    if (!m) return "inherit";
+    const [r, g, b] = [0, 2, 4].map(i => parseInt(m[1].slice(i, i + 2), 16) / 255).map(c => c <= .04045 ? c / 12.92 : Math.pow((c + .055) / 1.055, 2.4));
+    return 0.2126 * r + 0.7152 * g + 0.0722 * b > 0.3 ? "#1d2329" : "#ffffff";
+  }
+  function when(iso, tz) {
+    if (!iso) return "–";
+    const d = new Date(iso);
+    if (isNaN(d)) return iso;
+    try {
+      return new Intl.DateTimeFormat("en-US", { timeZone: tz || undefined, weekday: "short", month: "short",
+        day: "numeric", hour: "numeric", minute: "2-digit", timeZoneName: "short" }).format(d);
+    } catch (e) { return d.toUTCString(); }
+  }
+
+  fetch("data/latest.json", { cache: "no-store" }).then(r => {
+    if (!r.ok) throw new Error("data/latest.json: " + r.status);
+    return r.json();
+  }).then(render).catch(err => {
+    document.getElementById("sites").replaceChildren(el("p", { class: "stale" }, "Could not load the forecasts: " + err.message));
+  });
+
+  const SECTIONS = {};
+  // ---------------------------------------------------------------------------------------------
+  // Interactive forecast of the selected site (data/sites/<site>.json, written by trim-storm publish)
+  // ---------------------------------------------------------------------------------------------
+  const NS = "http://www.w3.org/2000/svg";
+  const sv = (tag, attrs, parent, text) => { const e = document.createElementNS(NS, tag); for (const k in attrs) e.setAttribute(k, attrs[k]);
+    if (text !== undefined && text !== null) e.textContent = text; if (parent) parent.appendChild(e); return e; };
+  const cssv = n => getComputedStyle(document.documentElement).getPropertyValue(n).trim();
+  const VIRIDIS = ["#440154", "#482878", "#3e4989", "#31688e", "#26828e", "#1f9e89", "#35b779", "#6ece58", "#b5de2b", "#fde725"]
+    .map(h => [1, 3, 5].map(k => parseInt(h.slice(k, k + 2), 16)));
+  const viridis = q => { const u = Math.max(0, Math.min(1, q)) * (VIRIDIS.length - 1), k = Math.min(VIRIDIS.length - 2, Math.floor(u)), a = u - k;
+    return "rgb(" + VIRIDIS[k].map((c, j) => Math.round(c + (VIRIDIS[k + 1][j] - c) * a)).join(",") + ")"; };
+  const has = a => Array.isArray(a) && a.some(v => v !== null && v !== undefined && v !== false);
+  let current = null, cleanup = null;
+
+  let DEFAULT_SOURCES = [];
+  function linked(text) {             // [label](https://...) becomes a link, e-mail addresses mailto: links
+    const out = [];
+    String(text).split(/(\[[^\]]+\]\((?:https?:\/\/|mailto:)[^\s)]+\))/).forEach((part, k) => {
+      const m = k % 2 ? part.match(/^\[([^\]]+)\]\(([^\s)]+)\)$/) : null;
+      if (m) { out.push(el("a", m[2].startsWith("mailto:") ? { href: m[2] } : { href: m[2], target: "_blank", rel: "noopener" }, m[1])); return; }
+      part.split(/([\w.+-]+@[\w-]+(?:\.[\w-]+)+)/).forEach((p, j) =>
+        out.push(j % 2 ? el("a", { href: "mailto:" + p }, p) : p));
+    });
+    return out;
+  }
+  function sources(list) {           // the footer's data sources (the shown site's)
+    const src = document.getElementById("sources");
+    if (!list || !list.length) { src.replaceChildren(); return; }
+    const ul = el("ul", {});
+    list.forEach(t => { const li = el("li", {}); li.append(...linked(t)); ul.append(li); });
+    src.replaceChildren(el("p", { class: "src-h" }, "Data sources"), ul);
+  }
+  function select(name) {
+    const R = SECTIONS[name];
+    if (!R) return;
+    sources(R.S.data_sources || DEFAULT_SOURCES);
+    document.querySelectorAll("#sitechips .sitebtn[data-site]").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.site === name)));
+    if (cleanup) { cleanup(); cleanup = null; }
+    current = name;
+    const box = document.getElementById("sites");
+    const S = R.S, sl = R.sl;
+    const head = el("div", { class: "detail-head", id: "site-" + S.site },
+      el("h2", {}, S.title || S.label || S.site),
+      el("span", { class: "badge", style: "background:" + color(R.lv < 0 ? null : R.lv) }, R.lv < 0 ? "No data" : sl[Math.round(R.lv)]),
+      el("span", { class: "muted" }, "Issued " + when(S.issue_utc, S.local_tz)),
+      R.stale ? el("span", { class: "stale" }, "Not updated for " + Math.round(R.ageH) + " h") : null);
+    const hl = hazardLine(S);
+    const holder = el("div", {});
+    const more = el("details", { class: "more" }, el("summary", {}, "Summary, figures and earlier forecasts"), R.sec);
+    const fm = floodMap(S);
+    box.replaceChildren(...[locMap(S), head, hl, fm, holder, more].filter(Boolean));
+    if (!S.detail) { more.open = true; return; }
+    holder.append(el("p", { class: "muted" }, "Loading the forecast..."));
+    fetch(S.detail, { cache: "no-store" }).then(r => { if (!r.ok) throw new Error(S.detail + ": " + r.status); return r.json(); })
+      .then(SD => { if (current === name) interactive(holder, SD, S, sl); })
+      .catch(err => { holder.replaceChildren(el("p", { class: "muted" }, "Interactive forecast unavailable (" + err.message + ").")); more.open = true; });
+  }
+
+  function interactive(holder, SD, S, sl) {
+    holder.replaceChildren();
+    if (SD.transects.length > 1) {
+      const tc = el("div", { class: "chips", role: "group", "aria-label": "Transects" });
+      SD.transects.forEach((T, k) => {
+        const b = el("button", { class: "chip", type: "button", "aria-pressed": String(k === 0) }, T.id);
+        b.addEventListener("click", () => { tc.querySelectorAll(".chip").forEach(x => x.setAttribute("aria-pressed", String(x === b))); show(T); });
+        tc.append(b);
+      });
+      holder.append(tc);
+    }
+    const area = el("div", {});
+    holder.append(area);
+    const show = T => { if (cleanup) cleanup(); cleanup = transect(area, SD, T, S, sl); };
+    show(SD.transects[0]);
+  }
+
+  // One transect: the plot stack, the readout and the runup plot. Returns a function that removes its listeners.
+  function transect(area, SD, T, S, sl) {
+    const H = T.H, N = H.t.length, T0 = H.t[0], T1 = H.t[N - 1], tz = SD.tz, term = SD.hazard_term || "flooding";
+    const fmtT = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
+    const fmtDay = new Intl.DateTimeFormat("en-US", { timeZone: tz, weekday: "short", day: "numeric" });
+    const fmtH = new Intl.DateTimeFormat("en-US", { timeZone: tz, hour: "numeric", hourCycle: "h23" });
+    const rule = SD.rain_rule || null, split = SD.swell_period_s || 10;
+    const minor = T.minor, moderate = T.moderate;
+    const datum = ({ NAVD: "NAVD88", NAVD88: "NAVD88", MLLW: "MLLW", MSL: "MSL", MHHW: "MHHW" })[String(T.datum || "").toUpperCase()] || T.datum || "profile datum";
+    const M = { l: 46, r: T.spec ? 64 : 14 };
+    let W = 600, cur = 0;
+    { let best = -1; for (let i = 0; i < N; i++) if (!H.past[i] && (H.Pmin[i] ?? -1) > best) { best = H.Pmin[i]; cur = i; } }
+    const X = t => M.l + (t - T0) / Math.max(1, T1 - T0) * (W - M.l - M.r);
+    const nPast = H.past.filter(Boolean).length;
+    const FWs = S.flood_map && S.flood_map.worst ? S.flood_map.worst.window_utc : null;   // the flood map's window, shaded
+    const FW = FWs ? [Date.parse(FWs[0]) - 1800e3, Date.parse(FWs[1]) + 1800e3] : null;
+
+    const layout = el("div", { class: "layout" });
+    const left = el("div", {});
+    const hint = el("p", { class: "hint" }, "Click or drag on the plots to move the time line; arrow keys step one hour (shift: one day)." +
+      (nPast ? " Shaded: the past " + Math.round(nPast / 24) + " days, from the forecasts issued then" + (has(H.obs) ? ", with the observed water level." : ".") : "") +
+      (FW ? " Yellow: the hours of the flood map above." : ""));
+    const stack = el("div", { class: "stack", tabindex: "0", "aria-label": "Forecast time series; the arrow keys move through the hours" });
+    const cursor = el("div", { class: "cursor" });
+    stack.append(cursor);
+    const ro = el("aside", { class: "readout", "aria-live": "polite" });
+    left.append(hint, stack);
+    layout.append(left, ro);
+    const runup = el("div", { class: "runup" });
+    const profSvg = sv("svg", { role: "img", "aria-label": "Beach profile with the forecast water levels at the selected hour" });
+    const obs = S.observe && S.observe.transects && S.observe.transects[T.id] ? el("p", { class: "obsline" },
+      el("a", { class: "obsbtn", href: "observe.html?site=" + encodeURIComponent(S.site) + "&transect=" + encodeURIComponent(T.id) },
+        "Report an observation"), el("span", { class: "muted" }, " Saw flooding here, or watched and saw none? Tell us.")) : null;
+    area.replaceChildren(...[obs, layout, runup].filter(Boolean));
+
+    const key = (cls, style, text) => '<span class="key"><i class="' + cls + '" style="' + style + '"></i>' + text + "</span>";
+    const P = [];
+    if (T.spec) P.push({ id: "spec", h: 120, title: "Wave energy by frequency", unit: "period, log scale",
+      keys: "<span>deep-water equivalent spectrum</span>" + key("", "border-color:#fff;box-shadow:0 0 0 1px #0004", "T* used for runup (as 1/T*)") });
+    const ws = has(H.sw) ? [{ k: "Hs", c: "--fg", n: "total Hs", w: 1.2 }, { k: "sw", c: "--s1", n: "swell (T > " + split + " s)" }, { k: "sea", c: "--s2", n: "wind waves (T < " + split + " s)" }]
+                         : [{ k: "Hs", c: "--s1", n: "Hs" }];
+    P.push({ id: "wave", h: 84, title: "Wave height at MOP " + (T.mop || ""), unit: "m", series: ws });
+    P.push({ id: "swl", h: 86, title: "Still water level", unit: "m, " + datum, series: [{ k: "tide", c: "--muted", n: "tide", w: 1.2 }, { k: "swl", c: "--s1", n: "tide + offset + surge" }], obs: has(H.obs) });
+    if (has(H.pct)) P.push({ id: "drain", h: 70, title: "Storm drain inlets closed by the water level", unit: "%", series: [{ k: "pct", c: "--s3", n: "% closed", area: true }], ymax: 100,
+      backflow: (H.nbf || []).some(v => v > 0) });
+    if (has(H.r90) || has(H.r50)) P.push({ id: "rain", h: 64, title: "Rain", unit: "mm/h", kind: "rain" });
+    const CK = SD.creek || null;
+    if (CK && (has(H.cqo) || has(H.cqm) || has(H.cqs))) P.push({ id: "creek", h: 84, title: (CK.name || "Creek") + " flow", unit: "cfs", kind: "creek" });
+    P.push({ id: "twl", h: 104, title: "Total water level (TWL)", unit: "m, " + datum, kind: "twl" });
+    const HZ = [{ k: "risk", n: cap(term) }].concat(has(H.rbf) ? [{ k: "rbf", n: "Drain backflow" }] : [], has(H.rrn) ? [{ k: "rrn", n: "Rain on closed drains" }] : [],
+      has(H.rck) ? [{ k: "rck", n: "Creek flow + high tide" }] : []);
+    P.push({ id: "hz", h: 6 + HZ.length * 27 + 18, title: "Flood hazard by hour", unit: "level", kind: "hz" });
+    P.forEach(p => {
+      let keys = p.keys || "";
+      if (p.series) keys = p.series.map(se => key(se.dash ? "dash" : "", "border-color:var(" + se.c + ")", se.n)).join("") + (p.obs ? key("pt", "background:var(--fg)", "observed") : "");
+      if (p.kind === "twl") keys = key("band", "background:var(--s2)", "5–95%") + key("", "border-color:var(--s2)", "median") + key("", "border-color:var(--s1)", "still water") + key("dash", "border-color:var(--r3)", "flood levels");
+      if (p.kind === "hz") keys = ["none", "minor possible", "minor likely", "moderate possible", "moderate likely"]
+        .map((t, i) => key("band", "background:" + COLORS[i] + ";opacity:1", t)).join("");
+      if (p.backflow) keys += key("band", "background:var(--crit);opacity:.35", "backflow flooding possible");
+      if (p.kind === "creek") keys = key("", "border-color:var(--fg)", "observed") + key("dash", "border-color:var(--s1)", "NWM next 18 h") +
+        key("", "border-color:var(--s2)", "NWM 10-day mean") + key("band", "background:var(--s2)", "member range") + key("dash", "border-color:var(--r3)", "elevated");
+      if (p.kind === "rain") keys = key("band", "background:var(--s1);opacity:.8", "median") + key("band", "background:var(--s1)", "to 90th percentile") +
+        (rule ? key("band", "background:var(--crit);opacity:.5", "compound flooding") + key("hatch", "", "compound if rain reaches the 90th percentile") : "");
+      const d = el("div", { class: "panel" });
+      d.innerHTML = '<div class="ptitle"><b>' + p.title + "</b> <span>(" + p.unit + ")</span>" + keys + "</div>";
+      if (p.id === "spec") { p.canvas = document.createElement("canvas"); d.appendChild(p.canvas); }
+      p.svg = sv("svg", {}, d);
+      stack.append(d);
+    });
+    runup.innerHTML = '<div class="ptitle"><b>Runup at the selected hour</b>' + key("", "border-color:var(--s1)", "still water level") +
+      key("band", "background:var(--s2)", "TWL, 5–95%") + key("", "border-color:var(--s2)", "TWL, median") + key("dash", "border-color:var(--r3)", "minor / moderate flood level") + "</div>";
+    runup.append(profSvg);
+
+    const vals = k => (H[k] || []).filter(v => v !== null && v !== undefined);
+    function extent(keys) { let lo = Infinity, hi = -Infinity; keys.forEach(k => vals(k).forEach(v => { lo = Math.min(lo, v); hi = Math.max(hi, v); }));
+      if (!isFinite(lo)) { lo = 0; hi = 1; } const r = (hi - lo) || 1; return [lo - r * .08, hi + r * .08]; }
+    function ticks(lo, hi, n) { const s0 = (hi - lo) / n, mag = Math.pow(10, Math.floor(Math.log10(s0))); const s = [1, 2, 2.5, 5, 10].map(q => q * mag).find(q => q >= s0);
+      const out = []; for (let v = Math.ceil(lo / s) * s; v <= hi + 1e-9; v += s) out.push(+v.toFixed(6)); return out; }
+    function path(k, Y) { let d = "", pen = false; const a = H[k] || []; for (let i = 0; i < N; i++) { const v = a[i]; if (v === null || v === undefined) { pen = false; continue; }
+      d += (pen ? "L" : "M") + X(H.t[i]).toFixed(1) + "," + Y(v).toFixed(1); pen = true; } return d; }
+    const days = []; { let last = null; for (let i = 0; i < N; i++) { const dd = fmtDay.format(new Date(H.t[i])); if (dd !== last && Number(fmtH.format(new Date(H.t[i]))) % 24 === 0) days.push(i); last = dd; } }
+    function frame(p, lo, hi, o) {
+      o = o || {}; const s = p.svg; s.innerHTML = ""; const h = p.h, top = 6, bot = o.xlabels ? 18 : 4;
+      s.setAttribute("viewBox", "0 0 " + W + " " + h); s.setAttribute("height", h);
+      const Y = v => top + (1 - (v - lo) / (hi - lo)) * (h - top - bot);
+      sv("rect", { x: X(T0), y: top, width: Math.max(0, X(SD.issue_ms) - X(T0)), height: Math.max(0, h - top - bot), fill: cssv("--past") }, s);
+      if (FW) sv("rect", { x: X(FW[0]), y: top, width: Math.max(3, X(FW[1]) - X(FW[0])), height: Math.max(0, h - top - bot), fill: cssv("--fmwin") }, s);
+      days.forEach(i => sv("line", { x1: X(H.t[i]), x2: X(H.t[i]), y1: top, y2: h - bot, stroke: cssv("--grid") }, s));
+      if (!o.noy) ticks(lo, hi, o.nt || 2).forEach(v => { sv("line", { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: cssv("--grid") }, s);
+        sv("text", { x: M.l - 6, y: Y(v) + 3.5, "text-anchor": "end", fill: cssv("--muted"), "font-size": 10 }, s, o.fmt ? o.fmt(v) : v); });
+      sv("line", { x1: X(SD.issue_ms), x2: X(SD.issue_ms), y1: top, y2: h - bot, stroke: cssv("--muted"), "stroke-dasharray": "2 3" }, s);
+      let lx = -1e9;
+      if (o.xlabels) days.forEach(i => { const x = X(H.t[i]) + 3; if (x - lx < 44 || x > W - M.r - 20) return; lx = x;
+        sv("text", { x, y: h - 5, fill: cssv("--muted"), "font-size": 10 }, s, fmtDay.format(new Date(H.t[i]))); });
+      return Y;
+    }
+    const line = (s, d, c, w, dash) => sv("path", { d, fill: "none", stroke: c, "stroke-width": w || 2, "stroke-linejoin": "round", "stroke-dasharray": dash ? "4 3" : "none" }, s);
+    const hline = (s, Y, v, c, label) => { sv("line", { x1: M.l, x2: W - M.r, y1: Y(v), y2: Y(v), stroke: c, "stroke-width": 1.2, "stroke-dasharray": "5 3" }, s);
+      if (label) sv("text", { x: W - M.r - 2, y: Y(v) - 3, "text-anchor": "end", fill: c, "font-size": 10 }, s, label); };
+
+    function drawSpec(p) {
+      const Sp = T.spec, h = p.h, f = Sp.f, rows = Sp.rows, cv = p.canvas, dpr = window.devicePixelRatio || 1;
+      cv.width = W * dpr; cv.height = h * dpr; cv.style.height = h + "px"; const g = cv.getContext("2d"); g.scale(dpr, dpr); g.clearRect(0, 0, W, h);
+      const LOGF = true, lg = v => LOGF ? Math.log(v) : v, la = lg(f[0]), lb = lg(f[f.length - 1]);
+      const fy = v => 4 + (1 - (lg(v) - la) / (lb - la)) * (h - 8), lo = Sp.lo, hi = Sp.hi;
+      for (let r = 0; r < rows.length; r++) {
+        const t = rows[r][0], dt = r + 1 < rows.length ? rows[r + 1][0] - t : (r ? t - rows[r - 1][0] : 3 * 3600e3);
+        const x0 = Math.max(M.l, X(t - dt / 2)), x1 = Math.min(W - M.r, X(t + dt / 2)); if (x1 <= x0) continue;
+        for (let j = 0; j < f.length; j++) { const v = rows[r][j + 1]; if (v === null) continue; g.fillStyle = viridis((v - lo) / (hi - lo));
+          const ya = fy(j + 1 < f.length ? (f[j] + f[j + 1]) / 2 : f[j]), yb = fy(j ? (f[j] + f[j - 1]) / 2 : f[j]); g.fillRect(x0, ya, x1 - x0 + .5, yb - ya + .5); }
+      }
+      g.fillStyle = "rgba(255,255,255,.18)"; g.fillRect(M.l, 4, Math.max(0, X(SD.issue_ms) - M.l), h - 8);
+      g.strokeStyle = "#fff"; g.lineWidth = 1.8; g.beginPath(); let pen = false;
+      for (let i = 0; i < N; i++) { const v = H.Ts && H.Ts[i]; if (!v) { pen = false; continue; } const y = fy(1 / v); if (y < 4 || y > h - 4) { pen = false; continue; }
+        pen ? g.lineTo(X(H.t[i]), y) : g.moveTo(X(H.t[i]), y); pen = true; } g.stroke();
+      g.fillStyle = cssv("--muted"); g.font = "10px system-ui"; g.textAlign = "right";
+      if (LOGF) [25, 20, 15, 10, 7, 5, 4].map(T => 1 / T).filter(v => v >= f[0] - 1e-9 && v <= f[f.length - 1] + 1e-9)
+        .forEach(v => { g.fillText(Math.round(1 / v) + " s", M.l - 6, fy(v) + 3.5); g.fillStyle = "rgba(255,255,255,.35)"; g.fillRect(M.l, fy(v), W - M.l - M.r, .6); g.fillStyle = cssv("--muted"); });
+      else ticks(f[0], f[f.length - 1], 4).forEach(v => g.fillText(v.toFixed(2), M.l - 6, fy(v) + 3.5));
+      const cbx = W - M.r + 10, cbw = 9, cy0 = 6, cy1 = h - 6;
+      for (let y = cy0; y < cy1; y++) { g.fillStyle = viridis(1 - (y - cy0) / (cy1 - cy0)); g.fillRect(cbx, y, cbw, 1.2); }
+      g.strokeStyle = cssv("--line"); g.lineWidth = 1; g.strokeRect(cbx, cy0, cbw, cy1 - cy0);
+      g.fillStyle = cssv("--muted"); g.font = "9.5px system-ui"; g.textAlign = "left";
+      for (let v = Math.ceil(lo); v <= hi + 1e-9; v += 1) g.fillText(v.toFixed(0), cbx + cbw + 3, cy0 + (1 - (v - lo) / (hi - lo)) * (cy1 - cy0) + 3);
+      g.save(); g.translate(W - 3, h / 2); g.rotate(-Math.PI / 2); g.textAlign = "center"; g.fillText("log10 E0 (m²/Hz)", 0, 0); g.restore();
+      p.svg.setAttribute("height", 0);
+    }
+
+    function draw() {
+      W = Math.max(320, stack.clientWidth);
+      P.forEach((p, pi) => {
+        const last = pi === P.length - 1;
+        if (p.id === "spec") return drawSpec(p);
+        if (p.kind === "rain") {
+          const hi = Math.max(rule ? rule.compound_mm_h * 1.15 : 1, ...vals("r90"), ...vals("r50")) * 1.1, Y = frame(p, 0, hi, { xlabels: last }), s = p.svg;
+          const bw = Math.max(1, N > 1 ? X(H.t[1]) - X(H.t[0]) - 1 : 2);
+          if (rule) {
+            const hp = sv("pattern", { id: "hatch-" + T.id, width: 5, height: 5, patternUnits: "userSpaceOnUse", patternTransform: "rotate(45)" }, sv("defs", {}, s));
+            sv("rect", { width: 2, height: 5, fill: cssv("--crit"), opacity: .55 }, hp);
+            for (let i = 0; i < N; i++) { const x = X(H.t[i]) - bw / 2 - .5;
+              if (H.comp && H.comp[i]) sv("rect", { x, y: 6, width: bw + 1, height: Y(0) - 6, fill: cssv("--crit"), opacity: .28 }, s);
+              else if (H.c90 && H.c90[i]) sv("rect", { x, y: 6, width: bw + 1, height: Y(0) - 6, fill: "url(#hatch-" + T.id + ")" }, s); }
+          }
+          for (let i = 0; i < N; i++) { const x = X(H.t[i]) - bw / 2, a = H.r90 ? H.r90[i] : null, b = H.r50 ? H.r50[i] : null;
+            if (a > 0) sv("rect", { x, y: Y(a), width: bw, height: Math.max(0, Y(0) - Y(a)), fill: cssv("--s1"), opacity: .3 }, s);
+            if (b > 0) sv("rect", { x, y: Y(b), width: bw, height: Math.max(0, Y(0) - Y(b)), fill: cssv("--s1"), opacity: .85 }, s); }
+          if (rule) hline(s, Y, rule.compound_mm_h, cssv("--crit"), rule.compound_mm_h + " mm/h");
+          return;
+        }
+        if (p.kind === "creek") {
+          const el_ = CK.elevated_cfs, md = CK.moderate_cfs;
+          const hi = Math.max(el_ * 1.3, md ? md * 1.1 : 0, ...vals("cq1"), ...vals("cqo"), ...vals("cqs")) * 1.08;
+          const Y = frame(p, 0, hi, { nt: 2, xlabels: last }), s = p.svg;
+          let d = "", back = ""; for (let i = 0; i < N; i++) if (H.cq1 && H.cq1[i] !== null && H.cq0[i] !== null) { d += (d ? "L" : "M") + X(H.t[i]).toFixed(1) + "," + Y(H.cq1[i]).toFixed(1); back = "L" + X(H.t[i]).toFixed(1) + "," + Y(H.cq0[i]).toFixed(1) + back; }
+          if (d) sv("path", { d: d + back + "Z", fill: cssv("--s2"), opacity: .22 }, s);
+          if (H.cqm) line(s, path("cqm", Y), cssv("--s2"), 1.8);
+          if (H.cqs) line(s, path("cqs", Y), cssv("--s1"), 1.8, true);
+          if (H.cqo) line(s, path("cqo", Y), cssv("--fg"), 1.6);
+          hline(s, Y, el_, cssv("--r3"), "elevated " + Math.round(el_) + " cfs");
+          if (md) hline(s, Y, md, cssv("--r4"), "moderate " + Math.round(md) + " cfs");
+          return;
+        }
+        if (p.kind === "twl") {
+          const lo = Math.min(...vals("swl"), ...vals("p05")) - .3, hi = Math.max(moderate ?? -Infinity, ...vals("p95")) + .4;
+          const Y = frame(p, lo, hi, { nt: 3, xlabels: last }), s = p.svg;
+          let d = "", back = ""; for (let i = 0; i < N; i++) if (H.p95[i] !== null && H.p05[i] !== null) { d += (d ? "L" : "M") + X(H.t[i]).toFixed(1) + "," + Y(H.p95[i]).toFixed(1); back = "L" + X(H.t[i]).toFixed(1) + "," + Y(H.p05[i]).toFixed(1) + back; }
+          if (d) sv("path", { d: d + back + "Z", fill: cssv("--s2"), opacity: .22 }, s);
+          line(s, path("swl", Y), cssv("--s1"), 1.2); line(s, path("p50", Y), cssv("--s2"), 2);
+          if (minor !== null) hline(s, Y, minor, cssv("--r3"), "minor " + minor.toFixed(2));
+          if (moderate !== null) hline(s, Y, moderate, cssv("--r4"), "moderate " + moderate.toFixed(2));
+          return;
+        }
+        if (p.kind === "hz") {          // one row per hazard, each hour coloured by its risk level
+          frame(p, 0, 1, { noy: true, xlabels: last }); const s = p.svg;
+          const bw = N > 1 ? X(H.t[1]) - X(H.t[0]) : 4;
+          HZ.forEach((z, r) => {
+            const y = 6 + r * 27;
+            sv("rect", { x: M.l, y: y + 12, width: W - M.l - M.r, height: 12, fill: cssv("--grid"), opacity: .5 }, s);
+            const lv = i => { const v = H[z.k] && H[z.k][i]; return v === null || v === undefined ? null : Math.max(0, Math.min(4, Math.round(v))); };
+            for (let i = 0; i < N; ) { const v = lv(i); let j = i + 1; while (j < N && lv(j) === v) j++;     // one rect per run of equal levels
+              if (v !== null) sv("rect", { x: X(H.t[i]) - bw / 2, y: y + 12, width: X(H.t[j - 1]) - X(H.t[i]) + bw, height: 12, fill: COLORS[v] }, s);
+              i = j; }
+          });
+          sv("rect", { x: M.l, y: 6, width: Math.max(0, X(SD.issue_ms) - M.l), height: HZ.length * 27, fill: cssv("--bg"), opacity: .45 }, s);
+          HZ.forEach((z, r) => sv("text", { x: M.l, y: 6 + r * 27 + 9, fill: cssv("--fg"), "font-size": 10.5 }, s, z.n));
+          return;
+        }
+        const [lo, hi] = p.ymax ? [0, p.ymax] : extent(p.series.map(x => x.k).concat(p.obs ? ["obs"] : []));
+        const Y = frame(p, lo, hi, { nt: 2, xlabels: last }), s = p.svg;
+        if (p.backflow) {          // hours when at least one inlet may let bay water back up into the street
+          const bw = Math.max(2, N > 1 ? X(H.t[1]) - X(H.t[0]) : 4);
+          for (let i = 0; i < N; i++) if (H.nbf[i] > 0) sv("rect", { x: X(H.t[i]) - bw / 2, y: Y(hi), width: bw, height: Y(lo) - Y(hi), fill: cssv("--crit"), opacity: .35 }, s);
+        }
+        p.series.forEach(se => {
+          if (se.area) sv("path", { d: path(se.k, Y) + "L" + X(T1) + "," + Y(0) + "L" + X(T0) + "," + Y(0) + "Z", fill: cssv(se.c), opacity: .25 }, s);
+          line(s, path(se.k, Y), cssv(se.c), se.w || 2, se.dash);
+        });
+        if (p.id === "drain" && rule) hline(s, Y, rule.pct_closed, cssv("--muted"), "most closed");
+        if (p.obs) for (let i = 0; i < N; i++) if (H.obs[i] !== null) sv("circle", { cx: X(H.t[i]), cy: Y(H.obs[i]), r: 2.2, fill: cssv("--fg") }, s);
+      });
+      place();
+    }
+
+    function drawProfile() {
+      const s = profSvg, Pf = T.profile, w = Math.max(320, runup.clientWidth), h = Math.min(260, Math.max(200, w * .3));
+      s.setAttribute("viewBox", "0 0 " + w + " " + h); s.setAttribute("height", h); s.innerHTML = "";
+      const i = cur, swl = H.swl[i], p05 = H.p05[i], p50 = H.p50[i], p95 = H.p95[i];
+      if (!Pf || swl === null || p50 === null) { sv("text", { x: 10, y: 20, fill: cssv("--muted"), "font-size": 12 }, s, "No profile or no forecast at this hour."); return; }
+      const m = { l: 46, r: 14, t: 10, b: 26 };
+      let kc = Pf.z.findIndex(z => minor !== null && z >= minor - 0.15); if (kc < 0) kc = Pf.z.indexOf(Math.max(...Pf.z));
+      // axes fixed over the whole forecast, so the profile stays put as the time line moves
+      const x0 = Pf.x[0] - 8, x1 = Math.min(Pf.x[Pf.x.length - 1] + 5, Pf.x[kc] + 45), zlo = Math.min(Math.min(...Pf.z) - .3, Math.min(...vals("swl")) - .5);
+      const lvl = moderate ?? minor, zcrest = Math.max(...Pf.z.filter((z, k) => Pf.x[k] <= x1));
+      const zhi = Math.max(lvl !== null && lvl !== undefined ? Math.min(Math.max(...vals("p95")) + .3, lvl + 1) : Math.max(...vals("p95")) + .3, zcrest + .3);
+      const XX = x => m.l + (x - x0) / (x1 - x0) * (w - m.l - m.r), YY = z => m.t + (1 - (z - zlo) / (zhi - zlo)) * (h - m.t - m.b);
+      ticks(zlo, zhi, 4).forEach(v => { sv("line", { x1: m.l, x2: w - m.r, y1: YY(v), y2: YY(v), stroke: cssv("--grid") }, s);
+        sv("text", { x: m.l - 6, y: YY(v) + 3.5, "text-anchor": "end", fill: cssv("--muted"), "font-size": 10 }, s, v); });
+      sv("text", { x: m.l, y: h - 6, fill: cssv("--muted"), "font-size": 10 }, s, "← sea · distance along the profile (m) · elevation (m, " + datum + ")");
+      const cross = v => { for (let k = 1; k < Pf.x.length; k++) if (Pf.z[k] >= v && Pf.z[k - 1] < v) return Pf.x[k - 1] + (v - Pf.z[k - 1]) / (Pf.z[k] - Pf.z[k - 1]) * (Pf.x[k] - Pf.x[k - 1]); return null; };
+      const xw = Pf.z[0] >= swl ? Pf.x[0] : (cross(swl) ?? x1);
+      sv("rect", { x: XX(x0), y: YY(swl), width: Math.max(0, XX(xw) - XX(x0)), height: Math.max(0, YY(zlo) - YY(swl)), fill: cssv("--water"), opacity: .55 }, s);
+      const defs = sv("defs", {}, s), cid = "pc-" + T.id, aid = "air-" + T.id, gid = "tw-" + T.id;
+      sv("rect", { x: XX(x0), y: 0, width: XX(x1) - XX(x0), height: YY(zlo) }, sv("clipPath", { id: cid }, defs));
+      let d = "M" + XX(Pf.x[0]) + "," + YY(zlo); Pf.x.forEach((x, k) => d += "L" + XX(x).toFixed(1) + "," + YY(Pf.z[k]).toFixed(1)); d += "L" + XX(Pf.x[Pf.x.length - 1]) + "," + YY(zlo) + "Z";
+      sv("path", { d, fill: cssv("--land"), stroke: cssv("--land-line"), "stroke-width": 1.5, "clip-path": "url(#" + cid + ")" }, s);
+      let km = 0; Pf.x.forEach((x, k) => { if (x <= x1 && Pf.z[k] > Pf.z[km]) km = k; });      // the crest: wet only seaward of it
+      let da = "M" + XX(x0) + ",0L" + XX(Pf.x[km]) + ",0"; for (let k = km; k >= 0; k--) da += "L" + XX(Pf.x[k]).toFixed(1) + "," + YY(Pf.z[k]).toFixed(1); da += "L" + XX(x0) + "," + YY(Pf.z[0]) + "Z";
+      sv("path", { d: da }, sv("clipPath", { id: aid }, defs));
+      const top = Math.min(p95, zhi), bot = Math.max(p05, zlo), gr = sv("linearGradient", { id: gid, x1: 0, y1: 0, x2: 0, y2: 1 }, defs);
+      const fr = v => ((top - v) / ((top - bot) || 1) * 100).toFixed(1) + "%";
+      [[top, .08], [p50, .45], [bot, .08]].forEach(([v, o]) => sv("stop", { offset: fr(v), "stop-color": cssv("--s2"), "stop-opacity": o }, gr));
+      const wet = sv("g", { "clip-path": "url(#" + aid + ")" }, s);
+      sv("rect", { x: XX(x0), y: YY(top), width: XX(x1) - XX(x0), height: Math.max(0, YY(bot) - YY(top)), fill: "url(#" + gid + ")" }, wet);
+      sv("line", { x1: XX(x0), x2: XX(x1), y1: YY(swl), y2: YY(swl), stroke: cssv("--s1"), "stroke-width": 1.6 }, wet);
+      sv("line", { x1: XX(x0), x2: XX(x1), y1: YY(p50), y2: YY(p50), stroke: cssv("--s2"), "stroke-width": 2 }, wet);
+      [[minor, "--r3", "minor flood level"], [moderate, "--r4", "moderate"]].forEach(([v, c, l]) => { if (v === null || v === undefined) return;
+        sv("line", { x1: XX(x0), x2: XX(x1), y1: YY(v), y2: YY(v), stroke: cssv(c), "stroke-width": 1.2, "stroke-dasharray": "5 3" }, s);
+        sv("text", { x: XX(x1) - 4, y: YY(v) - 4, "text-anchor": "end", fill: cssv(c), "font-size": 10.5 }, s, l + " " + v.toFixed(2) + " m"); });
+      const xr = cross(p50);
+      if (xr !== null && xr <= Pf.x[km]) sv("circle", { cx: XX(xr), cy: YY(p50), r: 4.5, fill: cssv("--s2"), stroke: cssv("--bg"), "stroke-width": 1.5 }, s);
+      const lab = (v, t, c, dy) => sv("text", { x: XX(x0) + 6, y: YY(v) + dy, fill: cssv(c), "font-size": 11, "font-weight": 600 }, s, t);
+      lab(p50, "TWL median " + p50.toFixed(2) + " m" + (minor !== null && p50 > minor ? " (above the minor flood level)" : ""), "--s2", -5);
+      lab(swl, "still water " + swl.toFixed(2) + " m", "--s1", 13);
+      sv("text", { x: XX(x0) + 6, y: YY(top) + 12, fill: cssv("--muted"), "font-size": 10 }, s, "95%: " + p95.toFixed(2) + " m");
+      sv("text", { x: XX(x0) + 6, y: YY(bot) - 4, fill: cssv("--muted"), "font-size": 10 }, s, "5%: " + p05.toFixed(2) + " m");
+    }
+
+    const f2 = (v, d) => (v === null || v === undefined) ? "–" : Number(v).toFixed(d);
+    const pc = v => (v === null || v === undefined) ? "–" : (v > 0 && v < .005 ? "<1" : Math.round(v * 100)) + "%";
+    function readout() {
+      const i = cur, past = H.past[i], drains = has(H.pct), rain = has(H.r50) || has(H.r90);
+      const lvB = H.risk[i] ?? 0, lvF = H.rbf ? (H.rbf[i] ?? 0) : null, lvR = H.rrn ? (H.rrn[i] ?? 0) : null;
+      const lvC = H.rck ? (H.rck[i] ?? 0) : null, ckIn = SD.creek && SD.creek.in_headline !== false;
+      const r = Math.round(Math.max(lvB, lvF ?? 0, lvR ?? 0, ckIn ? lvC ?? 0 : 0));
+      const hzRow = (name, lv, extra) => lv === null ? "" : '<div><span><span class="sw" style="background:' + color(lv) + '"></span>' + name +
+        "</span><b>" + cap(phrase(lv)) + (extra ? " " + extra : "") + "</b></div>";
+      const stat = (v, k) => '<div class="stat"><div class="v">' + v + '</div><div class="k">' + k + "</div></div>";
+      const row = (k, v, st) => "<div><span>" + k + "</span><b" + (st ? ' style="' + st + '"' : "") + ">" + v + "</b></div>";
+      const s = H.surge ? H.surge[i] : null;
+      ro.innerHTML = '<div class="ro-time">' + fmtT.format(new Date(H.t[i])) + "</div>" +
+        '<div class="ro-tag">' + (past ? "past: as forecast then" : "forecast, " + Math.round((H.t[i] - SD.issue_ms) / 3600e3) + " h ahead") + "</div>" +
+        '<div class="ro-risk"><span class="sw" style="background:' + color(r) + '"></span>' + sl[r] + "</div>" +
+        '<div class="ro-hz">' + hzRow(cap(term), lvB, lvB ? "(" + pc(lvB >= 3 ? H.Pmod[i] : H.Pmin[i]) + ")" : "") +
+          hzRow("Drain backflow", lvF, lvF ? "(" + pc(lvF >= 3 ? H.Pbf2[i] : H.Pbf1[i]) + (H.bfh && H.bfh[i] ? ", ~" + Math.round(H.bfh[i]) + " h" : "") + ")" : "") +
+          hzRow("Rain on closed drains", lvR, lvR ? "(" + pc(lvR >= 3 ? H.Prn2[i] : H.Prn1[i]) + (H.rcm && H.rcm[i] ? ", ~" + f2(H.rcm[i], 0) + " mm" : "") + ")" : "") +
+          hzRow("Creek flow + high tide", lvC, lvC ? "(" + pc(lvC >= 3 ? H.Pck2[i] : H.Pck1[i]) + ")" : "") + "</div>" +
+        '<div class="ro-grid">' + stat(pc(H.Pmin[i]), "chance of " + term) +
+          (drains ? stat((H.ncl[i] ?? "–") + '<span style="font-size:.7em;font-weight:400"> / ' + (H.nin[i] ?? "–") + "</span>", "drain inlets closed (" + (H.pct[i] === null ? "–" : Math.round(H.pct[i])) + "%)") : "") +
+          (rain ? stat(f2(H.r50 && H.r50[i], 1), "rain, mm/h (90%: " + f2(H.r90 && H.r90[i], 1) + ")") : "") +
+          stat(f2(H.p50[i], 2) + '<span style="font-size:.7em;font-weight:400"> m</span>', "TWL median (" + f2(H.p05[i], 1) + "–" + f2(H.p95[i], 1) + ")") + "</div>" +
+        '<div class="ro-more">' +
+          (rule ? row("Compound flooding", H.comp && H.comp[i] ? "⚠ yes" : H.c90 && H.c90[i] ? "⚠ if rain is heavy (90%)" : "no", H.comp && H.comp[i] ? "color:var(--crit)" : "") : "") +
+          row("Waves at MOP", f2(H.Hs[i], 2) + " m, " + f2(H.Tp[i], 0) + " s, " + f2(H.Dp[i], 0) + "°") +
+          (has(H.sw) ? row("&nbsp;swell / wind waves", f2(H.sw[i], 2) + " / " + f2(H.sea[i], 2) + " m") : "") +
+          row("Still water level", f2(H.swl[i], 2) + " m") +
+          (H.offset ? row("&nbsp;tide + offset + surge", f2(H.tide[i], 2) + " + " + f2(H.offset[i], 2) + (s !== null && s < 0 ? " − " : " + ") + f2(Math.abs(s ?? 0), 2)) : "") +
+          (H.obs && H.obs[i] !== null ? row("&nbsp;observed", f2(H.obs[i], 2) + " m") : "") +
+          row("Runup R2", f2(H.R2[i], 2) + " m") + row("Chance of moderate", pc(H.Pmod[i])) +
+          (SD.creek && (H.cqo || H.cqm || H.cqs) ? row("Creek flow",
+            (H.cqo && H.cqo[i] !== null ? f2(H.cqo[i], 0) + " cfs (observed)" : H.cqs && H.cqs[i] !== null ? f2(H.cqs[i], 0) + " cfs (NWM)" :
+             H.cqm && H.cqm[i] !== null ? f2(H.cqm[i], 0) + " cfs (NWM mean)" : "–")) +
+            (!(H.cqo && H.cqo[i] !== null) && H.cq0 && H.cq0[i] !== null ? row("&nbsp;NWM member range", f2(H.cq0[i], 0) + "–" + f2(H.cq1[i], 0) + " cfs") : "") +
+            (H.Pce ? row("&nbsp;chance elevated / high tide", pc(H.Pce[i]) + " / " + pc(H.Poh[i])) : "") : "") +
+          (drains ? row("Drains backing up", H.nbf ? (H.nbf[i] ?? 0) : "–") : "") + "</div>";
+    }
+    function place() { cursor.style.left = X(H.t[cur]) + "px"; readout(); drawProfile(); }
+    function setFromX(px) { const t = T0 + (px - M.l) / (W - M.l - M.r) * (T1 - T0); let b = 0, bd = Infinity;
+      for (let i = 0; i < N; i++) { const dd = Math.abs(H.t[i] - t); if (dd < bd) { bd = dd; b = i; } } if (b !== cur) { cur = b; place(); } }
+    let drag = false;
+    stack.addEventListener("pointerdown", e => { drag = true; stack.setPointerCapture(e.pointerId); setFromX(e.clientX - stack.getBoundingClientRect().left); });
+    stack.addEventListener("pointermove", e => { if (drag) setFromX(e.clientX - stack.getBoundingClientRect().left); });
+    stack.addEventListener("pointerup", () => drag = false); stack.addEventListener("pointercancel", () => drag = false);
+    stack.addEventListener("keydown", e => { const k = { ArrowRight: 1, ArrowLeft: -1 }[e.key]; if (!k) return; e.preventDefault();
+      cur = Math.max(0, Math.min(N - 1, cur + k * (e.shiftKey ? 24 : 1))); place(); });
+    let rt; const onResize = () => { clearTimeout(rt); rt = setTimeout(draw, 120); };
+    const mq = matchMedia("(prefers-color-scheme: dark)");
+    addEventListener("resize", onResize); mq.addEventListener("change", draw);
+    draw();
+    return () => { removeEventListener("resize", onResize); mq.removeEventListener("change", draw); };
+  }
+
+  function render(D) {
+    document.title = D.title;
+    document.getElementById("title").textContent = D.title;
+    document.getElementById("description").textContent = D.description || "";
+    document.getElementById("disclaimer").textContent = D.disclaimer || "";
+    document.getElementById("version").textContent = D.trim_storm_version || "";
+    DEFAULT_SOURCES = D.data_sources || [];
+    sources(DEFAULT_SOURCES);
+    document.getElementById("updated").textContent = "Page updated " + when(D.generated_utc) +
+      ". Forecasts from the last " + D.days + " days.";
+    const labels = D.risk_labels;
+    const legend = document.getElementById("legend");
+    const terms = [...new Set(D.sites.map(S => S.hazard_term || "flooding"))];   // one shared term: use it in the legend
+    labels.forEach((t, i) => legend.append(el("span", {}, el("span", { class: "sw", style: "background:" + COLORS[i] }), t)));
+
+    const now = new Date();
+    const box = document.getElementById("sites");
+    box.replaceChildren();
+    for (const S of D.sites) {
+      const issued = new Date(S.issue_utc);
+      const ageH = (now - issued) / 3.6e6;
+      const stale = ageH > D.stale_hours;
+      const hz = siteHazards(S);
+      const lv = Math.max(-1, ...hz.filter(h => h.headline !== false).map(h => h.level ?? -1));
+      const sl = labels;                                       // the headline: the highest of the hazards
+      const sec = el("section", { class: "site", id: "site-" + S.site });
+      const head = el("div", { class: "site-head" },
+        el("h2", {}, "Summary"),
+        el("span", { class: "badge", style: "background:" + color(lv < 0 ? null : lv) }, lv < 0 ? "No data" : sl[Math.round(lv)]),
+        el("span", { class: "muted" }, "Issued " + when(S.issue_utc, S.local_tz)),
+        stale ? el("span", { class: "stale" }, "Not updated for " + Math.round(ageH) + " h") : null);
+      sec.append(head);
+      sec.append(outlook(S, labels));
+
+      const hasOv = S.transects.some(t => t.structure_type);
+      const hasDr = S.transects.some(t => t.drain_max_pct_closed !== null && t.drain_max_pct_closed !== undefined);
+      const hdr = ["Transect", "Highest risk", "Highest P(minor)", "Peak (local)", "P(minor), any tide",
+                   "Highest P(moderate)", "Peak TWL (median)", "Minor / moderate threshold"];
+      if (hasOv) hdr.push("P(≥2% overtop)");
+      if (hasDr) hdr.push("Drains closed (max)");
+      const tb = el("tbody");
+      for (const t of S.transects) {
+        const cells = [t.transect_id,
+          el("span", {}, el("span", { class: "sw", style: "background:" + color(t.max_risk_level) }),
+             t.max_risk_level === null ? "–" : sl[Math.round(t.max_risk_level)]),
+          pct(t.max_P_minor), when(t.time_max_P_minor, S.local_tz), pct(t.P_any_minor), pct(t.max_P_moderate),
+          m(t.max_TWL_p50_m),
+          m(t.threshold_minor_m) + " / " + m(t.threshold_moderate_m)];
+        if (hasOv) cells.push(t.structure_type ? pct(t.max_P_ov_minor) : "–");
+        if (hasDr) cells.push(t.drain_max_pct_closed === null ? "–" : Math.round(t.drain_max_pct_closed) + "%");
+        tb.append(el("tr", {}, ...cells.map(c => el("td", {}, c))));
+      }
+      sec.append(el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {}, ...hdr.map(h => el("th", {}, h)))), tb)));
+      const pmaps = pluvialMaps(S);
+      if (pmaps) sec.append(pmaps);
+
+      const figs = el("div", { class: "figs" });
+      for (const f of S.figures) {
+        const src = S.path + f.file;
+        figs.append(el("figure", {}, el("a", { href: src }, el("img", { src: src, alt: f.title, loading: "lazy" })),
+                       el("figcaption", {}, f.title)));
+      }
+      if (S.figures.length) sec.append(figs);
+      if (S.tables.length) {
+        const p = el("p", { class: "muted" }, "Tables: ");
+        S.tables.forEach((f, i) => { if (i) p.append(" · "); p.append(el("a", { href: S.path + f.file }, f.file)); });
+        sec.append(p);
+      }
+      if (S.history && S.history.length > 1) {
+        const hb = el("tbody");
+        for (const h of S.history) {
+          hb.append(el("tr", {}, el("td", {}, when(h.issue_utc, S.local_tz)),
+            el("td", {}, el("span", { class: "sw", style: "background:" + color(h.max_risk_level) }),
+               h.max_risk_level === null ? "–" : sl[Math.round(h.max_risk_level)]),
+            el("td", {}, pct(h.max_P_minor)), el("td", {}, pct(h.max_P_moderate)),
+            el("td", {}, el("a", { href: h.path + (S.figures[0] ? S.figures[0].file : "") }, "figure"))));
+        }
+        sec.append(el("details", {}, el("summary", {}, "Earlier forecasts (" + (S.history.length - 1) + ")"),
+          el("div", { class: "scroll" }, el("table", {}, el("thead", {}, el("tr", {},
+            ...["Issued", "Highest risk", "P(minor)", "P(moderate)", ""].map(h => el("th", {}, h)))), hb))));
+      }
+      SECTIONS[S.site] = { S, sec, lv, sl, stale, ageH };
+    }
+    if (!D.sites.length) box.append(el("p", { class: "muted" }, "No forecasts published yet."));
+    // site buttons: published sites coloured by their highest risk; planned sites greyed out
+    const chips = document.getElementById("sitechips");
+    const buttons = D.buttons || D.sites.map(S => ({ label: S.label || S.site, site: S.site }));
+    for (const B of buttons) {
+      const R = B.site ? SECTIONS[B.site] : null;
+      if (!R) {
+        chips.append(el("button", { class: "sitebtn", type: "button", disabled: "", title: "Forecast coming soon" }, B.label));
+        continue;
+      }
+      const bg = color(R.lv < 0 ? null : R.lv);
+      const b = el("button", { class: "sitebtn", type: "button", "data-site": B.site, "aria-pressed": "false",
+        style: "background:" + bg + ";color:" + ink(bg),
+        title: (R.lv < 0 ? "No data" : R.sl[Math.round(R.lv)]) + " (issued " + when(R.S.issue_utc, R.S.local_tz) + ")" }, B.label);
+      b.addEventListener("click", () => { history.replaceState(null, "", "#site-" + B.site); select(B.site); });
+      chips.append(b);
+    }
+    const fromHash = decodeURIComponent((location.hash || "").replace(/^#site-/, ""));
+    select(SECTIONS[fromHash] ? fromHash : (D.sites[0] && D.sites[0].site));
+    addEventListener("hashchange", () => { const h = decodeURIComponent(location.hash.replace(/^#site-/, "")); if (SECTIONS[h]) select(h); });
+  }
+})();
+</script>
+</body>
+</html>
